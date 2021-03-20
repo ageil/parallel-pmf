@@ -1,9 +1,11 @@
 #include <iostream>
+
+#include "csvlib/csv.h"
+#include "models/PMF.h"
+
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include "csvlib/csv.h"
 #include <Eigen/Dense>
-#include "models/PMF.h"
 
 using namespace std;
 using namespace Eigen;
@@ -95,14 +97,18 @@ int main(int argc, char **argv)
 
     // (1). read CSV & save to matrix object
     MatrixXd ratings = loadData(input);
+    const double std_beta = 1.0;
+    const double std_theta = 1.0;
+
+    // TODO: Pass training ratings instead of all ratings.
+    const Model::PMF pmf{ratings, k, std_beta, std_theta};
 
     // (2). TODO: split matrix into training & validation sets
 
     // (3). TODO: implement PMF class
-    auto model = Model::PMF(ratings, 3, 1.0, 1.0);
 
     // (4). TODO: training
-//    model.train(3);
+    //    model.train(3);
 
     // (5). TODO: output losses & prediction results to outdir,
     //  write python scripts for visualization & other calculations

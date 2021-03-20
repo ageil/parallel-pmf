@@ -10,5 +10,10 @@ include_directories(include /usr/local/Cellar/eigen/3.3.9)
 find_package(Boost 1.71 COMPONENTS filesystem program_options REQUIRED)
 find_package(Threads REQUIRED)
 
-add_executable(main main.cpp)
-target_link_libraries(main ${Boost_LIBRARIES} Threads::Threads)
+add_subdirectory(models)
+set(SOURCES main.cpp)
+
+add_executable(main 
+               ${SOURCES})
+
+target_link_libraries(main ${Boost_LIBRARIES} models Threads::Threads)
