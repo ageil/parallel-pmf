@@ -3,7 +3,7 @@
 namespace Proj
 {
 
-    PMF::PMF(MatrixXd &data, const int k, const double std_beta, const double std_theta)
+    PMF::PMF(const MatrixXd &data, const int k, const double std_beta, const double std_theta)
         : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(k), m_items(k)
     {
         cout << "Initializing PMF with `data` size " << data.rows()

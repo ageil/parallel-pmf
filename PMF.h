@@ -18,7 +18,7 @@ namespace Proj
         void initializeTheta(const VectorXd &users);
         void initializeBeta(const VectorXd &items);
 
-        MatrixXd m_data;
+        const MatrixXd m_data;
         const int m_k;
         const double m_std_theta;
         const double m_std_beta;
@@ -29,7 +29,7 @@ namespace Proj
         map<int, VectorXd> m_losses;
 
     public:
-        PMF(MatrixXd &d, const int k, const double eta_beta, const double eta_theta);
+        PMF(const MatrixXd &d, const int k, const double eta_beta, const double eta_theta);
         ~PMF() = default;
 
         double normPDF(int x, double loc = 0.0, double scale = 1.0);
