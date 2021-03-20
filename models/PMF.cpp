@@ -1,6 +1,6 @@
 #include "PMF.h"
 
-namespace Proj
+namespace Model
 {
 
     PMF::PMF(const MatrixXd &data, const int k, const double std_beta, const double std_theta)
@@ -76,6 +76,13 @@ namespace Proj
         return {};
     }
 
+    double PMF::train(int iters)
+    {
+        cerr << "Not implemented yet" << endl;
+        double loss = 0.0;
+        return loss;
+    }
+
     // `data` is a matrix with m_k rows and 2 columns (user, item).
     // Returns a vector of predictions, getting the dot product of the
     // given user and item from the theta and beta vectors respectively.
@@ -107,4 +114,4 @@ namespace Proj
         return v;
     }
 
-} //namespace Proj
+} // namespace Model
