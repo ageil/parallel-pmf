@@ -103,7 +103,9 @@ int main(int argc, char **argv)
     const double std_beta = 1.0;
     const double std_theta = 1.0;
 
+    // TODO: Pass training ratings instead of all ratings.
     const Proj::PMF pmf{ratings, k, std_beta, std_theta};
+
     // (2). todo: split matrix into training & validation sets
 
     // (3). todo: implement PMF class
