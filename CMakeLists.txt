@@ -9,7 +9,7 @@ include_directories(include /usr/local/include/eigen3/)
 find_package(Boost 1.71 COMPONENTS filesystem program_options REQUIRED)
 find_package(Threads REQUIRED)
 
-set(SOURCES main.cpp PMF.cpp)
+set(SOURCES main.cpp PMF.cpp utils.cpp)
 
 add_executable(main 
                ${SOURCES})
