@@ -11,7 +11,8 @@ namespace Proj
              << " std_beta=" << std_beta << " std_theta=" << std_theta
              << endl;
 
-        // TODO: Need to make users and items values UNIQUE.
+        // TODO: Need to make users and items values UNIQUE. Do we need these
+        // values to be unique?
         m_users = m_data.col(0);
         m_items = m_data.col(1);
 
@@ -29,6 +30,7 @@ namespace Proj
         // normal_distribution<double> dist_theta(0, std_theta);
     }
 
+    // Initializes map d_theta with for each user with VectorXd(size=m_k)
     void PMF::initializeTheta(const VectorXd &users)
     {
         //TODO: assert users.size() == m_K?
@@ -39,6 +41,7 @@ namespace Proj
         }
     }
 
+    // Initializes map d_beta with for each item with VectorXd(size=m_k)
     void PMF::initializeBeta(const VectorXd &items)
     {
         //TODO: assert items.size() == m_K?
