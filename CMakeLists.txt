@@ -9,5 +9,9 @@ include_directories(include /usr/local/include/eigen3/)
 find_package(Boost 1.71 COMPONENTS filesystem program_options REQUIRED)
 find_package(Threads REQUIRED)
 
-add_executable(main main.cpp)
+set(SOURCES main.cpp PMF.cpp)
+
+add_executable(main 
+               ${SOURCES})
+
 target_link_libraries(main ${Boost_LIBRARIES} Threads::Threads)
