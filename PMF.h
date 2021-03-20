@@ -15,15 +15,17 @@ namespace Proj
     class PMF
     {
     private:
-        void initializeTheta(const vector<int> &users);
-        void initializeBeta(const vector<int> &items);
+        void initializeTheta(const VectorXd &users);
+        void initializeBeta(const VectorXd &items);
 
         MatrixXd m_data;
         const int m_k;
         const double m_std_theta;
         const double m_std_beta;
-        map<int, VectorXd> m_beta;
+        VectorXd m_users;
+        VectorXd m_items;
         map<int, VectorXd> m_theta;
+        map<int, VectorXd> m_beta;
         map<int, VectorXd> m_losses;
 
     public:

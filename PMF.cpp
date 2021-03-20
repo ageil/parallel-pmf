@@ -4,29 +4,47 @@ namespace Proj
 {
 
     PMF::PMF(MatrixXd &data, const int k, const double std_beta, const double std_theta)
-        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta)
+        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(k), m_items(k)
     {
-        cout << "PMF initialized `data` size " << data.rows()
+        cout << "Initializing PMF with `data` size " << data.rows()
              << " x " << data.cols() << " with k=" << k
              << " std_beta=" << std_beta << " std_theta=" << std_theta
              << endl;
+
+        // TODO: Need to make users and items values UNIQUE.
+        m_users = m_data.col(0);
+        m_items = m_data.col(1);
+
+        initializeTheta(m_users);
+
+        cout << "Initialized " << m_theta.size()
+             << " users in theta map \n";
+
+        initializeBeta(m_items);
+
+        cout << "Initialized " << m_beta.size()
+             << " items in beta map \n";
         // default_random_engine generator(time(nullptr));
         // normal_distribution<double> dist_beta(0, std_beta);
         // normal_distribution<double> dist_theta(0, std_theta);
     }
 
-    void PMF::initializeTheta(const vector<int> &users)
+    void PMF::initializeTheta(const VectorXd &users)
     {
-        for (const int user : users)
+        //TODO: assert users.size() == m_K?
+        for (int i = 0; i < users.size(); ++i)
         {
+            const int user = users(i);
             m_theta[user] = VectorXd(m_k);
         }
     }
 
-    void PMF::initializeBeta(const vector<int> &items)
+    void PMF::initializeBeta(const VectorXd &items)
     {
-        for (const int item : items)
+        //TODO: assert items.size() == m_K?
+        for (int i = 0; i < items.size(); ++i)
         {
+            const int item = items(i);
             m_beta[item] = VectorXd(m_k);
         }
     }
