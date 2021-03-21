@@ -23,7 +23,7 @@ namespace Model
     }
 
     pair<double, double> Utils::topN(const PMF &pmfModel, const MatrixXd &data,
-                                     int N)
+                                     const int N)
     {
         //TODO
         cerr << "Not implemented yet" << endl;

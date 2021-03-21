@@ -25,7 +25,7 @@ namespace Model
 
         // TODO: need docs for topN. Returns pair of <presision, recall>
         pair<double, double> topN(const PMF &pmfModel, const MatrixXd &data,
-                                  int N = 10);
+                                  const int N = 10);
 
     } //namepsace Utils
 } //namespace Model
