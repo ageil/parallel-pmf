@@ -4,8 +4,9 @@
 #include <iostream>
 #include <map>
 #include <random>
-#include <Eigen/Dense>
 #include <set>
+
+#include <Eigen/Dense>
 
 namespace Model
 {
