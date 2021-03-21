@@ -2,20 +2,24 @@
 #include "PMF.h"
 
 #include <iostream>
+#include <gsl/gsl_assert>
 
 namespace Model
 {
 
-    VectorXd Utils::rmse(const double y, const VectorXd &y_hat)
+    VectorXd Utils::rmse(const double y_hat, const VectorXd &y)
     {
-        //TODO
-        cerr << "Not implemented yet" << endl;
-        const int k = y_hat.size();
+        const double denominator = y.size();
+        Expects(denominator > 0);
 
-        return VectorXd(k);
+        const double c = 1 / denominator;
+
+        // sqrt(1/k * sum((y-y_hat^2)))
+        VectorXd sub = (c * (y_hat - y.array()).square()).sqrt();
+        return sub;
     }
 
-    double Utils::r2(const double y, const VectorXd &y_hat)
+    double Utils::r2(const double y_hat, const VectorXd &y)
     {
         //TODO
         cerr << "Not implemented yet" << endl;
