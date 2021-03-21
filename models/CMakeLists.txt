@@ -2,5 +2,15 @@ add_library(models PMF.cpp utils.cpp)
 
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
-target_link_libraries (models PUBLIC 
-    Eigen3::Eigen)
+include(FetchContent)
+FetchContent_Declare(GSL
+    GIT_REPOSITORY "https://github.com/microsoft/GSL"
+    GIT_TAG "v3.1.0"
+
+)
+
+FetchContent_MakeAvailable(GSL)
+target_link_libraries (models PUBLIC
+    Eigen3::Eigen
+    Microsoft.GSL::GSL
+    )
