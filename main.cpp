@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     // (3). TODO: implement PMF class
 
     // (4). TODO: training
-    model.fit(3, 0.01);
+    model.fit(100, 0.01);
 
     // (5). TODO: output losses & prediction results to outdir,
     //  write python scripts for visualization & other calculations
