@@ -101,14 +101,14 @@ int main(int argc, char **argv)
     const double std_theta = 1.0;
 
     // TODO: Pass training ratings instead of all ratings.
-    const Model::PMF pmf{ratings, k, std_beta, std_theta};
+    Model::PMF model{ratings, 3, std_beta, std_theta};
 
     // (2). TODO: split matrix into training & validation sets
 
     // (3). TODO: implement PMF class
 
     // (4). TODO: training
-    //    model.train(3);
+    model.fit(3, 0.01);
 
     // (5). TODO: output losses & prediction results to outdir,
     //  write python scripts for visualization & other calculations
