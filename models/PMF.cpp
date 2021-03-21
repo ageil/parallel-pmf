@@ -70,9 +70,22 @@ namespace Model
         return {};
     }
 
-    double PMF::fit(int iters)
+    double PMF::fit(int iters, double gamma)
     {
-        cerr << "Not implemented yet" << endl;
+        for (int iter=0; iter<iters; iter++)
+        {
+            cout << "Iteration: " << iter+1 << "/" << iters << endl;
+            for (int i : m_users)
+            {
+//                double grad = -(1.0 / m_std_theta) * m_theta[i];
+
+            }
+            for (int j : m_items)
+            {
+
+            }
+
+        }
         double loss = 0.0;
         return loss;
     }

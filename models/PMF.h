@@ -16,8 +16,6 @@ namespace Model
         {
         private:
                 set<int> getUnique(int col_idx);
-                void initializeTheta(const VectorXd &users);
-                void initializeBeta(const VectorXd &items);
                 void initializeVectors(normal_distribution<>& dist, set<int>& entities, map<int, VectorXd>& m_vectors);
                 double normPDF(int x, double loc = 0.0, double scale = 1.0);
                 double logNormPDF(int x, double loc = 0.0, double scale = 1.0);
@@ -38,7 +36,7 @@ namespace Model
                 PMF(const MatrixXd &d, const int k, const double eta_beta, const double eta_theta);
                 ~PMF() = default;
 
-                double fit(int iters);
+                double fit(int iters, double gamma);
                 VectorXd predict(const MatrixXd &data);
                 VectorXd recommend(int user);
 
