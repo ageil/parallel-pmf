@@ -23,16 +23,11 @@ namespace Model
 
     double Utils::r2(const VectorXd &y, const VectorXd &y_hat)
     {
-        //TODO
-        cerr << "Not implemented yet" << endl;
-        return 0;
-    }
+        double SSE = (y - y_hat).array().square().sum();
+        double TSS = (y - y.rowwise().mean()).sum();
 
-    // def R2(y, y_hat):
-    // SSE = np.sum((y - y_hat)**2)
-    // TSS = np.sum((y - np.mean(y))**2)
-    // R2 = 1 - SSE/TSS
-    // return R2
+        return 1 - (SSE / TSS);
+    }
 
     pair<double, double> Utils::topN(const PMF &pmfModel, const MatrixXd &data,
                                      const int N)
