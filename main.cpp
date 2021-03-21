@@ -66,12 +66,12 @@ int main(int argc, char **argv)
     // parse arguments, path configuration
     string input = "../movielens/ratings.csv";
     fs::path outdir("results");
-    int k;
+    int k = 3;
     int n_epochs = 200;  // default # of iterations
     double gamma = 0.01; // default learning rate for gradient descent
 
     po::options_description desc("Parameters for Probabilistic Matrix Factorization (PMF)");
-    desc.add_options()("help,h", "Help")("input,i", po::value<string>(&input), "Input file name")("output,o", po::value<fs::path>(&outdir), "Output directory\n  [default: current_path/results/]")("n_components,k", po::value<int>(&k), "Number of components (k)")("n_epochs,n", po::value<int>(&n_epochs), "Num. of learning iterations\n  [default: 200]")("gamma", po::value<double>(&gamma), "learning rate for gradient descent\n  [default: 1e-2]");
+    desc.add_options()("help,h", "Help")("input,i", po::value<string>(&input), "Input file name")("output,o", po::value<fs::path>(&outdir), "Output directory\n  [default: current_path/results/]")("n_components,k", po::value<int>(&k), "Number of components (k) [default: 3]")("n_epochs,n", po::value<int>(&n_epochs), "Num. of learning iterations\n  [default: 200]")("gamma", po::value<double>(&gamma), "learning rate for gradient descent\n  [default: 1e-2]");
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     const double std_theta = 1.0;
 
     // TODO: Pass training ratings instead of all ratings.
-    Model::PMF model{ratings, 3, std_beta, std_theta};
+    Model::PMF model{ratings, k, std_beta, std_theta};
 
     // (2). TODO: split matrix into training & validation sets
 

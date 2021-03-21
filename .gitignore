@@ -30,9 +30,12 @@
 *.exe
 *.out
 *.app
+*.tsk
 
 .DS_Store
 .vscode
+
 CMakeCache.txt
 CmakeFiles
 cmake_install.cmake
+Makefile
