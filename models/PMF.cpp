@@ -1,54 +1,48 @@
 #include "PMF.h"
+#include<set>
 
 namespace Model
 {
 
     PMF::PMF(const MatrixXd &data, const int k, const double std_beta, const double std_theta)
-        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(k), m_items(k)
+        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta) //, m_users(k), m_items(k)
     {
         cout << "Initializing PMF with `data` size " << data.rows()
              << " x " << data.cols() << " with k=" << k
              << " std_beta=" << std_beta << " std_theta=" << std_theta
              << endl;
 
-        // TODO: Need to make users and items values UNIQUE. Do we need these
-        // values to be unique?
-        m_users = m_data.col(0);
-        m_items = m_data.col(1);
+        m_users = getUnique(0);
+        m_items = getUnique(1);
 
-        initializeTheta(m_users);
+        default_random_engine generator(time(nullptr));
+        normal_distribution<double> dist_beta(0, std_beta);
+        normal_distribution<double> dist_theta(0, std_theta);
 
-        cout << "Initialized " << m_theta.size()
-             << " users in theta map \n";
+        initializeVectors(dist_beta, m_items, m_beta);
+        cout << "Initialized " << m_theta.size() << " users in theta map \n";
 
-        initializeBeta(m_items);
-
-        cout << "Initialized " << m_beta.size()
-             << " items in beta map \n";
-        // default_random_engine generator(time(nullptr));
-        // normal_distribution<double> dist_beta(0, std_beta);
-        // normal_distribution<double> dist_theta(0, std_theta);
+        initializeVectors(dist_theta, m_users, m_theta);
+        cout << "Initialized " << m_beta.size() << " items in beta map \n";
     }
 
-    // Initializes map d_theta with for each user with VectorXd(size=m_k)
-    void PMF::initializeTheta(const VectorXd &users)
+    // Gets a set of unique int ID values for column col_idx in m_data
+    set<int> PMF::getUnique(int col_idx)
     {
-        //TODO: assert users.size() == m_K?
-        for (int i = 0; i < users.size(); ++i)
-        {
-            const int user = users(i);
-            m_theta[user] = VectorXd(m_k);
-        }
+        MatrixXd col = m_data.col(col_idx);
+        set<int> unique{col.data(), col.data() + col.size()};
+        return unique;
     }
 
-    // Initializes map d_beta with for each item with VectorXd(size=m_k)
-    void PMF::initializeBeta(const VectorXd &items)
+    // Initializes map m_vectors for each entity with random vector of size m_k with distribution dist
+    void PMF::initializeVectors(normal_distribution<>& dist, set<int>& entities, map<int, VectorXd>& m_vectors)
     {
-        //TODO: assert items.size() == m_K?
-        for (int i = 0; i < items.size(); ++i)
+        auto rand = [&](){ return dist(generator); };
+        for (int elem : entities)
         {
-            const int item = items(i);
-            m_beta[item] = VectorXd(m_k);
+            VectorXd vec = VectorXd::NullaryExpr(m_k, rand);
+            vec.normalize();
+            m_vectors[elem] = vec;
         }
     }
 
@@ -76,7 +70,7 @@ namespace Model
         return {};
     }
 
-    double PMF::train(int iters)
+    double PMF::fit(int iters)
     {
         cerr << "Not implemented yet" << endl;
         double loss = 0.0;
