@@ -1,11 +1,7 @@
-//
-// Created by yinuo on 3/14/21.
-//
-
 #include <iostream>
 
 #include "csvlib/csv.h"
-#include "PMF.h"
+#include "models/PMF.h"
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -13,6 +9,7 @@
 
 using namespace std;
 using namespace Eigen;
+using namespace Model;
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -49,13 +46,13 @@ MatrixXd loadData(const string &input)
     ratings.conservativeResize(ratings.rows() - 1, ratings.cols());
 
     // center ratings to mean = 0
-    set<double> unique_rates{ratings.col(2).data(), ratings.col(2).data() + ratings.col(2).size()};
+    set<double> unique_ratings{ratings.col(2).data(), ratings.col(2).data() + ratings.col(2).size()};
     double sum = 0;
-    for (auto i : unique_rates)
+    for (auto i : unique_ratings)
     {
         sum += i;
     }
-    double mid = sum / unique_rates.size();
+    double mid = sum / unique_ratings.size();
     for (int i = 0; i < ratings.rows(); i++)
     {
         ratings(i, 2) -= mid;
@@ -67,7 +64,7 @@ MatrixXd loadData(const string &input)
 int main(int argc, char **argv)
 {
     // parse arguments, path configuration
-    string input;
+    string input = "../movielens/ratings.csv";
     fs::path outdir("results");
     int k;
     int n_epochs = 200;  // default # of iterations
@@ -104,14 +101,16 @@ int main(int argc, char **argv)
     const double std_theta = 1.0;
 
     // TODO: Pass training ratings instead of all ratings.
-    const Proj::PMF pmf{ratings, k, std_beta, std_theta};
+    const Model::PMF pmf{ratings, k, std_beta, std_theta};
 
-    // (2). todo: split matrix into training & validation sets
+    // (2). TODO: split matrix into training & validation sets
 
-    // (3). todo: implement PMF class
+    // (3). TODO: implement PMF class
 
-    // (4). todo: training
+    // (4). TODO: training
+    //    model.train(3);
 
-    // (5). todo: output losses & prediction results to outdir, write python scripts for visualization & other calculations
+    // (5). TODO: output losses & prediction results to outdir,
+    //  write python scripts for visualization & other calculations
     return 0;
 }

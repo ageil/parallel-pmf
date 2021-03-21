@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-namespace Proj
+namespace Model
 {
 
     VectorXd Utils::rmse(const double y, const VectorXd &y_hat)
@@ -31,4 +31,4 @@ namespace Proj
         return p;
     }
 
-} // namespace Proj
+} // namespace Model

@@ -4,12 +4,12 @@
 #include <utility>
 #include <Eigen/Dense>
 
-namespace Proj
+namespace Model
 {
     class PMF; // Forward declare
 }
 
-namespace Proj
+namespace Model
 {
     namespace Utils
     {
@@ -28,6 +28,6 @@ namespace Proj
                                   int N = 10);
 
     } //namepsace Utils
-} //namespace Proj
+} //namespace Model
 
 #endif
