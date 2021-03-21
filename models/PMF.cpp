@@ -1,5 +1,6 @@
 #include "PMF.h"
-#include<set>
+#include <set>
+#include <cmath>
 
 namespace Model
 {
@@ -19,10 +20,10 @@ namespace Model
         normal_distribution<double> dist_beta(0, std_beta);
         normal_distribution<double> dist_theta(0, std_theta);
 
-        initializeVectors(dist_beta, m_items, m_beta);
+        initVectors(dist_beta, m_items, m_beta);
         cout << "Initialized " << m_theta.size() << " users in theta map \n";
 
-        initializeVectors(dist_theta, m_users, m_theta);
+        initVectors(dist_theta, m_users, m_theta);
         cout << "Initialized " << m_beta.size() << " items in beta map \n";
     }
 
@@ -35,7 +36,7 @@ namespace Model
     }
 
     // Initializes map m_vectors for each entity with random vector of size m_k with distribution dist
-    void PMF::initializeVectors(normal_distribution<>& dist, set<int>& entities, map<int, VectorXd>& m_vectors)
+    void PMF::initVectors(normal_distribution<>& dist, set<int>& entities, map<int, VectorXd>& m_vectors)
     {
         auto rand = [&](){ return dist(generator); };
         for (int elem : entities)
@@ -46,48 +47,118 @@ namespace Model
         }
     }
 
-    double PMF::normPDF(int x, double loc, double scale)
+    // Evaluate log normal PDF at vector x
+    double PMF::logNormPDF(VectorXd x, double loc, double scale)
     {
-        cerr << "Not implemented yet" << endl;
-        return 0;
+        VectorXd vloc = VectorXd::Constant(x.size(), loc);
+        double norm = (x - vloc).norm();
+        double log_prob = -log(scale);
+        log_prob -= 1.0/2.0 * log(2.0 * M_PI);
+        log_prob -= 1.0/2.0 * (pow(2, norm) / pow(2, scale));
+        return log_prob;
     }
 
-    double PMF::logNormPDF(int x, double loc, double scale)
+    // Evaluate log normal PDF at double x
+    double PMF::logNormPDF(double x, double loc, double scale)
     {
-        cerr << "Not implemented yet" << endl;
-        return 0;
+        double diff = x - loc;
+        double log_prob = -log(scale);
+        log_prob -= 1.0/2.0 * log(2.0 * M_PI);
+        log_prob -= 1.0/2.0 * (pow(2.0, diff) / pow(2.0, scale));
+        return log_prob;
     }
 
-    double PMF::gradLogNormPDF(int x, double loc, double scale)
+    // Calculate the log probability of the data under the current model
+    double PMF::loss(MatrixXd data)
     {
-        cerr << "Not implemented yet" << endl;
-        return 0;
+        double l;
+        for (auto& i : m_users) {
+            l += logNormPDF(m_theta[i]);
+        }
+        for (auto& j : m_items) {
+            l += logNormPDF(m_beta[j]);
+        }
+        for (int idx=0; idx<data.rows(); idx++) {
+            int i = data(idx,0);
+            int j = data(idx, 1);
+            double r = data(idx, 2);
+            double r_hat = m_theta[i].dot(m_beta[j]);
+            l += logNormPDF(r, r_hat);
+        }
+        return l;
     }
 
-    vector<double> PMF::loss(MatrixXd data)
+    // Subset m_data by rows where values in column is equal to ID
+    MatrixXd PMF::subsetByID(int ID, int column)
     {
-        cerr << "Not implemented yet" << endl;
-        return {};
-    }
-
-    double PMF::fit(int iters, double gamma)
-    {
-        for (int iter=0; iter<iters; iter++)
+        VectorXi idx = (m_data.col(column).array() == ID).cast<int>();
+        MatrixXd submatrix(idx.sum(), m_data.cols());
+        int cur_row = 0;
+        for (int i=0; i<m_data.rows(); ++i)
         {
-            cout << "Iteration: " << iter+1 << "/" << iters << endl;
+            if (idx[i]) {
+                submatrix.row(cur_row) = m_data.row(i);
+                cur_row++;
+            }
+        }
+        return submatrix;
+    }
+
+    vector<double> PMF::fit(int iters, double gamma)
+    {
+        for (int iter=1; iter<=iters; iter++)
+        {
+            // update theta vectors
             for (int i : m_users)
             {
-//                double grad = -(1.0 / m_std_theta) * m_theta[i];
+                // extract sub-matrix of user i's data
+                MatrixXd user_data = subsetByID(i, 0);
+                VectorXi j_items = user_data.col(1).cast<int>();
+                VectorXd j_ratings = user_data.col(2);
 
+                // compute gradient update of user preference vectors
+                VectorXd grad = -(1.0 / m_std_theta) * m_theta[i];
+                for (int idx=0; idx<j_items.size(); idx++)
+                {
+                    int j = j_items(idx);
+                    double rating = j_ratings(idx);
+                    double rating_hat = m_theta[i].dot(m_beta[j]);
+                    grad += (rating - rating_hat) * m_beta[j];
+                }
+                VectorXd update = m_theta[i] + gamma * grad;
+                update.normalize();
+                m_theta[i] = update;
             }
+
+            // update beta vectors
             for (int j : m_items)
             {
+                // extract sub-matrix of item j's data
+                MatrixXd item_data = subsetByID(j, 1);
+                VectorXi i_users = item_data.col(0).cast<int>();
+                VectorXd i_ratings = item_data.col(2);
 
+                // compute gradient update of item attribute vectors
+                VectorXd grad = -(1.0 / m_std_beta) * m_beta[j];
+                for (int idx=0; idx<i_users.size(); idx++)
+                {
+                    int i = i_users(idx);
+                    double rating = i_ratings(idx);
+                    double rating_hat = m_theta[i].dot(m_beta[j]);
+                    grad += (rating - rating_hat) * m_theta[i];
+                }
+                VectorXd update = m_beta[j] + gamma * grad;
+                update.normalize();
+                m_beta[j] = update;
             }
-
+            // compute loss
+            if (iter % 10 == 0 || iter == 1) {
+                double l = loss(m_data);
+                m_losses.push_back(l);
+                cout << "Iter " << iter << " loss: " << l << endl;
+            }
         }
-        double loss = 0.0;
-        return loss;
+        return m_losses;
     }
 
     // `data` is a matrix with m_k rows and 2 columns (user, item).
