@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 
 #include "csvlib/csv.h"
 #include "models/PMF.h"
@@ -64,7 +65,7 @@ MatrixXd loadData(const string &input)
 int main(int argc, char **argv)
 {
     // parse arguments, path configuration
-    string input = "../movielens/ratings.csv";
+    string input = "./movielens/ratings.csv";
     fs::path outdir("results");
     int k = 3;
     int n_epochs = 200;  // default # of iterations
@@ -96,7 +97,7 @@ int main(int argc, char **argv)
     }
 
     // (1). read CSV & save to matrix object
-    MatrixXd ratings = loadData(input);
+    shared_ptr<MatrixXd> ratings = make_shared<MatrixXd>(loadData(input));
     const double std_beta = 1.0;
     const double std_theta = 1.0;
 
