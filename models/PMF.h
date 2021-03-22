@@ -1,11 +1,14 @@
 #ifndef PMF_H
 #define PMF_H
 
+#include <atomic>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <random>
 #include <set>
+#include <thread>
 
 #include <Eigen/Dense>
 
@@ -17,12 +20,15 @@ namespace Model
         class PMF
         {
         private:
+                void startWorkerThread();
+                void stopWorkerThread();
+
                 set<int> getUnique(int col_idx);
                 void initVectors(normal_distribution<> &dist, const set<int> &entities, map<int, VectorXd> &vmap);
                 MatrixXd subsetByID(int ID, int column);
                 double logNormPDF(const VectorXd &x, double loc = 0.0, double scale = 1.0);
                 double logNormPDF(double x, double loc = 0.0, double scale = 1.0);
-                double loss();
+                void loss();
 
                 const shared_ptr<MatrixXd> m_data;
                 const int m_k;
@@ -35,9 +41,13 @@ namespace Model
                 vector<double> m_losses;
                 default_random_engine d_generator;
 
+                atomic_bool m_run_compute_loss;
+                thread m_loss_thread;
+                mutex m_mutex;
+
         public:
                 PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta);
-                ~PMF() = default;
+                ~PMF();
 
                 vector<double> fit(int iters, double gamma);
                 VectorXd predict(const MatrixXd &data);
