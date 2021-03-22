@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <map>
+#include <memory>
 #include <random>
 #include <set>
 
@@ -17,13 +18,13 @@ namespace Model
         {
         private:
                 set<int> getUnique(int col_idx);
-                void initVectors(normal_distribution<>& dist, set<int>& entities, map<int, VectorXd>& m_vectors);
+                void initVectors(normal_distribution<> &dist, const set<int> &entities, map<int, VectorXd> &vmap);
                 MatrixXd subsetByID(int ID, int column);
-                double logNormPDF(VectorXd x, double loc = 0.0, double scale = 1.0);
+                double logNormPDF(const VectorXd &x, double loc = 0.0, double scale = 1.0);
                 double logNormPDF(double x, double loc = 0.0, double scale = 1.0);
-                double loss(MatrixXd data);
+                double loss();
 
-                const MatrixXd m_data;
+                const shared_ptr<MatrixXd> m_data;
                 const int m_k;
                 const double m_std_theta;
                 const double m_std_beta;
@@ -32,9 +33,10 @@ namespace Model
                 map<int, VectorXd> m_theta;
                 map<int, VectorXd> m_beta;
                 vector<double> m_losses;
-                default_random_engine generator;
+                default_random_engine d_generator;
+
         public:
-                PMF(const MatrixXd &d, const int k, const double eta_beta, const double eta_theta);
+                PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta);
                 ~PMF() = default;
 
                 vector<double> fit(int iters, double gamma);
