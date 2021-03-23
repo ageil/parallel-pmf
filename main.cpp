@@ -3,6 +3,7 @@
 
 #include "csvlib/csv.h"
 #include "models/PMF.h"
+#include "models/utils.h"
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -65,7 +66,7 @@ MatrixXd loadData(const string &input)
 int main(int argc, char **argv)
 {
     // parse arguments, path configuration
-    string input = "./movielens/ratings.csv";
+    string input = "../movielens/ratings.csv";
     fs::path outdir("results");
     int k = 3;
     int n_epochs = 200;  // default # of iterations
@@ -101,15 +102,23 @@ int main(int argc, char **argv)
     const double std_beta = 1.0;
     const double std_theta = 1.0;
 
+    // (2). TODO: split matrix into training & validation sets
+
     // TODO: Pass training ratings instead of all ratings.
     Model::PMF model{ratings, k, std_beta, std_theta};
 
-    // (2). TODO: split matrix into training & validation sets
+    // (3). Fit the model to the training data
+    vector<double> losses = model.fit(200, 0.01);
 
-    // (3). TODO: implement PMF class
-
-    // (4). TODO: training
-    model.fit(100, 0.01);
+    // (4). TODO: Evaluate the model on the validation data
+    VectorXd actual = ratings->rightCols(1);
+    VectorXd predicted = model.predict(ratings->leftCols(2));
+    double error = Utils::rmse(actual, predicted);
+    double baseline_zero = Utils::rmse(actual, 0.0);
+    double baseline_avg = Utils::rmse(actual, actual.mean());
+    cout << "RMSE(0): " << baseline_zero << endl;
+    cout << "RMSE(mean): " << baseline_avg << endl;
+    cout << "RMSE(pred): " << error << endl;
 
     // (5). TODO: output losses & prediction results to outdir,
     //  write python scripts for visualization & other calculations

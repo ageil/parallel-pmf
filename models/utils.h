@@ -20,6 +20,7 @@ namespace Model
         // Get root mean squared error. Returns VectorXd of the same shape as
         // y_hat.
         double rmse(const VectorXd &y, const double y_hat);
+        double rmse(const VectorXd &y, const VectorXd &y_hat);
 
         // TODO: need docs for r2
         double r2(const VectorXd &y, const VectorXd &y_hat);

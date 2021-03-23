@@ -5,7 +5,6 @@
 #include <cmath>
 #include <set>
 #include <thread>
-
 #include <gsl/gsl_assert>
 
 namespace Model
@@ -37,8 +36,6 @@ namespace Model
 
     PMF::~PMF()
     {
-        m_fit_users_running = false;
-        m_fit_items_running = false;
     }
 
     // Gets a set of unique int ID values for column col_idx in m_data
@@ -87,9 +84,10 @@ namespace Model
     // Calculate the log probability of the data under the current model
     void PMF::loss()
     {
-        while (m_fit_users_running || m_fit_items_running)
+        // While either fit users is running or fit items is running.
+        while (!m_stop_fit_users || !m_stop_fit_items)
         {
-            this_thread::sleep_for(chrono::seconds(3));
+            this_thread::sleep_for(chrono::seconds(10));
 
             double l;
             for (auto &i : m_users)
@@ -131,18 +129,16 @@ namespace Model
         return submatrix;
     }
 
-    vector<double> PMF::fit(int iters, double gamma)
+    vector<double> PMF::fit(int epochs, double gamma)
     {
-        m_fit_users_running = true;
-        m_fit_items_running = true;
-
-        Utils::guarded_thread usersThread([=] {
-            for (int iter = 1; iter <= iters; iter++)
+        Utils::guarded_thread fit_users_thread([=] {
+            for (int epoch = 1; epoch <= epochs; epoch++)
             {
-                if (iter % 10 == 0)
+                if (epoch % 10 == 0)
                 {
-                    cout << "user iter: " << iter << endl;
+                    cout << "[users worker]: user epoch: " << epoch << endl;
                 }
+
                 lock_guard<mutex> guard(m_mutex);
 
                 for (int i : m_users)
@@ -167,16 +163,17 @@ namespace Model
                     m_theta[i] = update;
                 }
             }
-            m_fit_users_running = false;
+            m_stop_fit_users = true;
         });
 
-        Utils::guarded_thread itemsThread([=] {
-            for (int iter = 1; iter <= iters; iter++)
+        Utils::guarded_thread fit_items_thread([=] {
+            for (int epoch = 1; epoch <= epochs; epoch++)
             {
-                if (iter % 10 == 0)
+                if (epoch % 10 == 0)
                 {
-                    cout << "items iter: " << iter << endl;
+                    cout << "[items worker]: items epoch: " << epoch << endl;
                 }
+
                 lock_guard<mutex> guard(m_mutex);
 
                 // update beta vectors
@@ -202,7 +199,7 @@ namespace Model
                     m_beta[j] = update;
                 }
             }
-            m_fit_items_running = false;
+            m_stop_fit_items = true;
         });
 
         loss();
@@ -210,15 +207,13 @@ namespace Model
         return m_losses;
     }
 
-    // `data` is a matrix with m_k rows and 2 columns (user, item).
-    // Returns a vector of predictions, getting the dot product of the
-    // given user and item from the theta and beta vectors respectively.
-    // TODO: need help writing documentation for what this method is doing
+    // Predict ratings using learned theta and beta vectors in model
+    // Input: data matrix with n rows and 2 columns (user, item)
+    // Returns a vector of predicted ratings for each user and item
     VectorXd PMF::predict(const MatrixXd &data)
     {
+        Expects(data.cols() == 2);
         const int num_rows = data.rows();
-
-        Expects(num_rows == m_k);
 
         VectorXd predictions(num_rows);
         for (int i = 0; i < num_rows; ++i)

@@ -38,8 +38,8 @@ namespace Model
                 vector<double> m_losses;
                 default_random_engine d_generator;
 
-                atomic_bool m_fit_users_running;
-                atomic_bool m_fit_items_running;
+                atomic_bool m_stop_fit_users;
+                atomic_bool m_stop_fit_items;
 
                 mutex m_mutex;
 
@@ -47,7 +47,7 @@ namespace Model
                 PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta);
                 ~PMF();
 
-                vector<double> fit(int iters, double gamma);
+                vector<double> fit(int epochs, double gamma);
                 VectorXd predict(const MatrixXd &data);
                 VectorXd recommend(int user);
 
