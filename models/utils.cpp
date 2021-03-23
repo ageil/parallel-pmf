@@ -21,6 +21,18 @@ namespace Model
         return sqrt(c * summed);
     }
 
+    double Utils::rmse(const VectorXd &y, const VectorXd &y_hat)
+    {
+        Expects(y.size() > 0);
+        Expects(y.size() == y_hat.size());
+
+        const VectorXd &err = y - y_hat;
+        const VectorXd &sq_err = err.array().square();
+        const double &ms_error = sq_err.sum() / y.size();
+
+        return sqrt(ms_error);
+    }
+
     double Utils::r2(const VectorXd &y, const VectorXd &y_hat)
     {
         double SSE = (y - y_hat).array().square().sum();
