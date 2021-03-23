@@ -1,6 +1,7 @@
 #include "PMF.h"
 #include <set>
 #include <cmath>
+#include <gsl/gsl_assert>
 
 namespace Model
 {
@@ -71,7 +72,7 @@ namespace Model
     // Calculate the log probability of the data under the current model
     double PMF::loss(MatrixXd data)
     {
-        double l;
+        double l = 0.0;
         for (auto& i : m_users) {
             l += logNormPDF(m_theta[i]);
         }
@@ -165,9 +166,12 @@ namespace Model
     // Returns a vector of predictions, getting the dot product of the
     // given user and item from the theta and beta vectors respectively.
     // TODO: need help writing documentation for what this method is doing
+
+    // Predict ratings using learned theta and beta vectors
+    // Returns a vector of predicted ratings for each user and item in input data
     VectorXd PMF::predict(const MatrixXd &data)
     {
-        //Should we assert m_k == num_rows here?
+        Expects(data.cols() == 2);
         const int num_rows = data.rows();
 
         VectorXd predictions(num_rows);
