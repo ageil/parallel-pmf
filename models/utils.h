@@ -2,6 +2,7 @@
 #define FINAL_PROJECT_UTILS_H
 
 #include <utility>
+#include <thread>
 #include <Eigen/Dense>
 
 namespace Model
@@ -26,6 +27,17 @@ namespace Model
         // TODO: need docs for topN. Returns pair of <presision, recall>
         pair<double, double> topN(const PMF &pmfModel, const MatrixXd &data,
                                   const int N = 10);
+
+        struct guarded_thread : std::thread
+        {
+            using std::thread::thread;
+
+            ~guarded_thread()
+            {
+                if (joinable())
+                    join();
+            }
+        };
 
     } //namepsace Utils
 } //namespace Model

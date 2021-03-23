@@ -1,5 +1,7 @@
 #include "PMF.h"
 #include "ratingsdata.h"
+#include "utils.h"
+
 #include <cmath>
 #include <set>
 #include <thread>
@@ -11,7 +13,7 @@ namespace Model
     using namespace RatingsData;
 
     PMF::PMF(const shared_ptr<MatrixXd> &data, const int k, const double std_beta, const double std_theta)
-        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_run_compute_loss(false)
+        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta)
     {
         cout
             << "Initializing PMF with `data` size " << m_data->rows()
@@ -35,26 +37,8 @@ namespace Model
 
     PMF::~PMF()
     {
-        stopWorkerThread();
-    }
-
-    void PMF::startWorkerThread()
-    {
-        m_run_compute_loss = true;
-        m_loss_thread = thread([this] {
-            this->loss();
-        });
-        cout << "Compute loss thread started. \n";
-    }
-
-    void PMF::stopWorkerThread()
-    {
-        m_run_compute_loss = false;
-        if (m_loss_thread.joinable())
-        {
-            m_loss_thread.join();
-            cout << "Compute loss thread stopped. \n";
-        }
+        m_fit_users_running = false;
+        m_fit_items_running = false;
     }
 
     // Gets a set of unique int ID values for column col_idx in m_data
@@ -103,31 +87,30 @@ namespace Model
     // Calculate the log probability of the data under the current model
     void PMF::loss()
     {
-        while (m_run_compute_loss)
+        while (m_fit_users_running || m_fit_items_running)
         {
-            this_thread::sleep_for(chrono::seconds(1));
-            lock_guard<mutex> guard(m_mutex);
+            this_thread::sleep_for(chrono::seconds(3));
 
             double l;
             for (auto &i : m_users)
             {
-                l += logNormPDF(m_theta[i]);
+                l += logNormPDF(m_theta.at(i));
             }
             for (auto &j : m_items)
             {
-                l += logNormPDF(m_beta[j]);
+                l += logNormPDF(m_beta.at(j));
             }
             for (int idx = 0; idx < m_data->rows(); idx++)
             {
                 int i = (*m_data)(idx, 0);
                 int j = (*m_data)(idx, 1);
                 double r = (*m_data)(idx, 2);
-                double r_hat = m_theta[i].dot(m_beta[j]);
+                double r_hat = m_theta.at(i).dot(m_beta.at(j));
                 l += logNormPDF(r, r_hat);
             }
 
             m_losses.push_back(l);
-            cout << "[worker] loss: " << l << endl;
+            cout << "loss: " << l << endl;
         }
     }
 
@@ -150,59 +133,79 @@ namespace Model
 
     vector<double> PMF::fit(int iters, double gamma)
     {
-        startWorkerThread();
-        for (int iter = 1; iter <= iters; iter++)
-        {
-            // update theta vectors
-            for (int i : m_users)
+        m_fit_users_running = true;
+        m_fit_items_running = true;
+
+        Utils::guarded_thread usersThread([=] {
+            for (int iter = 1; iter <= iters; iter++)
             {
+                if (iter % 10 == 0)
+                {
+                    cout << "user iter: " << iter << endl;
+                }
                 lock_guard<mutex> guard(m_mutex);
 
-                // extract sub-matrix of user i's data
-                const MatrixXd user_data = subsetByID(i, col_value(Cols::user));
-                const VectorXi &j_items = user_data.col(col_value(Cols::item)).cast<int>();
-                const VectorXd &j_ratings = user_data.col(col_value(Cols::rating));
-
-                // compute gradient update of user preference vectors
-                VectorXd grad = -(1.0 / m_std_theta) * m_theta[i];
-                for (int idx = 0; idx < j_items.size(); idx++)
+                for (int i : m_users)
                 {
-                    int j = j_items(idx);
-                    double rating = j_ratings(idx);
-                    double rating_hat = m_theta[i].dot(m_beta[j]);
-                    grad += (rating - rating_hat) * m_beta[j];
-                }
-                VectorXd update = m_theta[i] + gamma * grad;
-                update.normalize();
-                m_theta[i] = update;
-            }
 
-            // update beta vectors
-            for (int j : m_items)
+                    // extract sub-matrix of user i's data
+                    const MatrixXd user_data = subsetByID(i, col_value(Cols::user));
+                    const VectorXi &j_items = user_data.col(col_value(Cols::item)).cast<int>();
+                    const VectorXd &j_ratings = user_data.col(col_value(Cols::rating));
+
+                    // compute gradient update of user preference vectors
+                    VectorXd grad = -(1.0 / m_std_theta) * m_theta[i];
+                    for (int idx = 0; idx < j_items.size(); idx++)
+                    {
+                        int j = j_items(idx);
+                        double rating = j_ratings(idx);
+                        double rating_hat = m_theta[i].dot(m_beta[j]);
+                        grad += (rating - rating_hat) * m_beta[j];
+                    }
+                    VectorXd update = m_theta[i] + gamma * grad;
+                    update.normalize();
+                    m_theta[i] = update;
+                }
+            }
+            m_fit_users_running = false;
+        });
+
+        Utils::guarded_thread itemsThread([=] {
+            for (int iter = 1; iter <= iters; iter++)
             {
+                if (iter % 10 == 0)
+                {
+                    cout << "items iter: " << iter << endl;
+                }
                 lock_guard<mutex> guard(m_mutex);
 
-                // extract sub-matrix of item j's data
-                const MatrixXd item_data = subsetByID(j, col_value(Cols::item));
-                const VectorXi &i_users = item_data.col(col_value(Cols::user)).cast<int>();
-                const VectorXd &i_ratings = item_data.col(col_value(Cols::rating));
-
-                // compute gradient update of item attribute vectors
-                VectorXd grad = -(1.0 / m_std_beta) * m_beta[j];
-                for (int idx = 0; idx < i_users.size(); idx++)
+                // update beta vectors
+                for (int j : m_items)
                 {
-                    int i = i_users(idx);
-                    double rating = i_ratings(idx);
-                    double rating_hat = m_theta[i].dot(m_beta[j]);
-                    grad += (rating - rating_hat) * m_theta[i];
-                }
-                VectorXd update = m_beta[j] + gamma * grad;
-                update.normalize();
-                m_beta[j] = update;
-            }
-        }
 
-        stopWorkerThread();
+                    // extract sub-matrix of item j's data
+                    const MatrixXd item_data = subsetByID(j, col_value(Cols::item));
+                    const VectorXi &i_users = item_data.col(col_value(Cols::user)).cast<int>();
+                    const VectorXd &i_ratings = item_data.col(col_value(Cols::rating));
+
+                    // compute gradient update of item attribute vectors
+                    VectorXd grad = -(1.0 / m_std_beta) * m_beta[j];
+                    for (int idx = 0; idx < i_users.size(); idx++)
+                    {
+                        int i = i_users(idx);
+                        double rating = i_ratings(idx);
+                        double rating_hat = m_theta[i].dot(m_beta[j]);
+                        grad += (rating - rating_hat) * m_theta[i];
+                    }
+                    VectorXd update = m_beta[j] + gamma * grad;
+                    update.normalize();
+                    m_beta[j] = update;
+                }
+            }
+            m_fit_items_running = false;
+        });
+
+        loss();
 
         return m_losses;
     }

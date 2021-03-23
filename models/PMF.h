@@ -20,9 +20,6 @@ namespace Model
         class PMF
         {
         private:
-                void startWorkerThread();
-                void stopWorkerThread();
-
                 set<int> getUnique(int col_idx);
                 void initVectors(normal_distribution<> &dist, const set<int> &entities, map<int, VectorXd> &vmap);
                 MatrixXd subsetByID(int ID, int column);
@@ -41,8 +38,9 @@ namespace Model
                 vector<double> m_losses;
                 default_random_engine d_generator;
 
-                atomic_bool m_run_compute_loss;
-                thread m_loss_thread;
+                atomic_bool m_fit_users_running;
+                atomic_bool m_fit_items_running;
+
                 mutex m_mutex;
 
         public:
