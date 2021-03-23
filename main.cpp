@@ -66,7 +66,7 @@ MatrixXd loadData(const string &input)
 int main(int argc, char **argv)
 {
     // parse arguments, path configuration
-    string input = "../movielens/ratings.csv";
+    string input = "./movielens/ratings.csv";
     fs::path outdir("results");
     int k = 3;
     int n_epochs = 200;  // default # of iterations
