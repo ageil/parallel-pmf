@@ -1,4 +1,4 @@
-add_library(models PMF.cpp utils.cpp)
+add_library(models PMF.cpp utils.cpp ratingsdata.cpp)
 
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 
 #include "csvlib/csv.h"
 #include "models/PMF.h"
@@ -97,23 +98,21 @@ int main(int argc, char **argv)
     }
 
     // (1). read CSV & save to matrix object
-    MatrixXd ratings = loadData(input);
+    shared_ptr<MatrixXd> ratings = make_shared<MatrixXd>(loadData(input));
     const double std_beta = 1.0;
     const double std_theta = 1.0;
+
+    // (2). TODO: split matrix into training & validation sets
 
     // TODO: Pass training ratings instead of all ratings.
     Model::PMF model{ratings, k, std_beta, std_theta};
 
-    // (2). TODO: split matrix into training & validation sets
-
-    // (3). TODO: implement PMF class
-
-    // (4). Fit the model to the training data
+    // (3). Fit the model to the training data
     vector<double> losses = model.fit(200, 0.01);
 
-    // (5). TODO: Evaluate the model on the validation data
-    VectorXd actual = ratings.col(2);
-    VectorXd predicted = model.predict(ratings.leftCols(2));
+    // (4). TODO: Evaluate the model on the validation data
+    VectorXd actual = ratings->rightCols(1);
+    VectorXd predicted = model.predict(ratings->leftCols(2));
     double error = Utils::rmse(actual, predicted);
     double baseline_zero = Utils::rmse(actual, 0.0);
     double baseline_avg = Utils::rmse(actual, actual.mean());
@@ -121,7 +120,7 @@ int main(int argc, char **argv)
     cout << "RMSE(mean): " << baseline_avg << endl;
     cout << "RMSE(pred): " << error << endl;
 
-    // (6). TODO: output losses & prediction results to outdir,
+    // (5). TODO: output losses & prediction results to outdir,
     //  write python scripts for visualization & other calculations
     return 0;
 }
