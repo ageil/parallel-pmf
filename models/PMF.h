@@ -25,7 +25,9 @@ namespace Model
 
                 set<int> getUnique(int col_idx);
                 void initVectors(normal_distribution<> &dist, const set<int> &entities, map<int, VectorXd> &vmap);
-                MatrixXd subsetByID(int ID, int column);
+                MatrixXd subsetByID(MatrixXd& data, int ID, int column);
+                VectorXd getBetaGrad(MatrixXd& sample, int j);
+                VectorXd getThetaGrad(MatrixXd& sample, int i);
                 double logNormPDF(const VectorXd &x, double loc = 0.0, double scale = 1.0);
                 double logNormPDF(double x, double loc = 0.0, double scale = 1.0);
                 void loss();

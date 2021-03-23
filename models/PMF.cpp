@@ -130,47 +130,83 @@ namespace Model
         }
     }
 
-    // Subset m_data by rows where values in column is equal to ID
-    MatrixXd PMF::subsetByID(int ID, int column)
+    // Subset data by rows where values in column is equal to ID
+    MatrixXd PMF::subsetByID(MatrixXd& data, int ID, int column)
     {
-        VectorXi idx = (m_data->col(column).array() == ID).cast<int>();
-        MatrixXd submatrix(idx.sum(), m_data->cols());
+        VectorXi idx = (data.col(column).array() == ID).cast<int>();
+        MatrixXd submatrix(idx.sum(), data.cols());
         int cur_row = 0;
-        for (int i = 0; i < m_data->rows(); ++i)
+        for (int i = 0; i < data.rows(); ++i)
         {
-            if (idx[i])
-            {
-                submatrix.row(cur_row) = m_data->row(i);
+            if (idx[i]) {
+                submatrix.row(cur_row) = data.row(i);
                 cur_row++;
             }
         }
         return submatrix;
     }
 
+    // Approximate gradient of beta from subsample sample
+    VectorXd PMF::getBetaGrad(MatrixXd& sample, int j) {
+        // extract sub-matrix of item j's data
+        const MatrixXd item_data = subsetByID(sample, j, col_value(Cols::item));
+        const VectorXi &i_users = item_data.col(col_value(Cols::user)).cast<int>();
+        const VectorXd &i_ratings = item_data.col(col_value(Cols::rating));
+
+        // compute gradient update of item attribute vectors
+        VectorXd grad = -(1.0 / m_std_beta) * m_beta[j];
+        for (int idx = 0; idx < i_users.size(); idx++)
+        {
+            int i = i_users(idx);
+            double rating = i_ratings(idx);
+            double rating_hat = m_theta[i].dot(m_beta[j]);
+            grad += (rating - rating_hat) * m_theta[i];
+        }
+    }
+
+    // Approximate gradient of theta from subsample sample
+    VectorXd PMF::getThetaGrad(MatrixXd& sample, int i) {
+        // extract sub-matrix of user i's sample
+        const MatrixXd user_data = subsetByID(sample, i, col_value(Cols::user));
+        const VectorXi &j_items = user_data.col(col_value(Cols::item)).cast<int>();
+        const VectorXd &j_ratings = user_data.col(col_value(Cols::rating));
+
+        // approximate gradient of user preference vectors
+        VectorXd grad = -(1.0 / m_std_theta) * m_theta[i];
+        for (int idx = 0; idx < j_items.size(); idx++)
+        {
+            int j = j_items(idx);
+            double rating = j_ratings(idx);
+            double rating_hat = m_theta[i].dot(m_beta[j]);
+            grad += (rating - rating_hat) * m_beta[j];
+        }
+        return grad;
+    }
+
     vector<double> PMF::fit(int epochs, double gamma)
     {
+        int num_workers = 2;
+
         startWorkerThread();
         for (int epoch = 1; epoch <= epochs; epoch++)
         {
+            // TODO: split rows of m_data randomly into separate smaller subsamples
+            int n = m_data->rows()/2;
+            map<int, MatrixXd> samples;  // subsets of m_data for each worker thread; together covering full dataset
+            samples[1] = m_data->topRows(n);  // TODO: create better random sampling scheme
+            samples[2] = m_data->bottomRows(n);
+
             // update theta vectors
             for (int i : m_users)
             {
                 lock_guard<mutex> guard(m_mutex);
 
-                // extract sub-matrix of user i's data
-                const MatrixXd user_data = subsetByID(i, col_value(Cols::user));
-                const VectorXi &j_items = user_data.col(col_value(Cols::item)).cast<int>();
-                const VectorXd &j_ratings = user_data.col(col_value(Cols::rating));
+                // distribute getThetaGrad over worker nodes, one for each subsample of m_data
+                VectorXd grad = VectorXd::Zero(m_k);
+                for (int w = 0; w < num_workers; w++)  // TODO: for each worker (parallelize this)
+                    grad += getThetaGrad(samples[w], i);
 
-                // compute gradient update of user preference vectors
-                VectorXd grad = -(1.0 / m_std_theta) * m_theta[i];
-                for (int idx = 0; idx < j_items.size(); idx++)
-                {
-                    int j = j_items(idx);
-                    double rating = j_ratings(idx);
-                    double rating_hat = m_theta[i].dot(m_beta[j]);
-                    grad += (rating - rating_hat) * m_beta[j];
-                }
+                // once all worker nodes have completed, update theta_i
                 VectorXd update = m_theta[i] + gamma * grad;
                 update.normalize();
                 m_theta[i] = update;
@@ -181,20 +217,12 @@ namespace Model
             {
                 lock_guard<mutex> guard(m_mutex);
 
-                // extract sub-matrix of item j's data
-                const MatrixXd item_data = subsetByID(j, col_value(Cols::item));
-                const VectorXi &i_users = item_data.col(col_value(Cols::user)).cast<int>();
-                const VectorXd &i_ratings = item_data.col(col_value(Cols::rating));
+                // distribute getThetaGrad over worker nodes, one for each subsample of m_data
+                VectorXd grad = VectorXd::Zero(m_k);
+                for (int w = 0; w < num_workers; w++)  // TODO: for each worker (parallelize this)
+                    grad += getBetaGrad(samples[w], j);
 
-                // compute gradient update of item attribute vectors
-                VectorXd grad = -(1.0 / m_std_beta) * m_beta[j];
-                for (int idx = 0; idx < i_users.size(); idx++)
-                {
-                    int i = i_users(idx);
-                    double rating = i_ratings(idx);
-                    double rating_hat = m_theta[i].dot(m_beta[j]);
-                    grad += (rating - rating_hat) * m_theta[i];
-                }
+                // once all worker nodes have completed, update beta_j
                 VectorXd update = m_beta[j] + gamma * grad;
                 update.normalize();
                 m_beta[j] = update;
@@ -202,6 +230,7 @@ namespace Model
         }
         stopWorkerThread();
 
+        // TODO: trigger background thread to compute loss on current m_theta and m_beta using full m_data
         return m_losses;
     }
 
