@@ -2,6 +2,7 @@
 
 #include "csvlib/csv.h"
 #include "models/PMF.h"
+#include "models/utils.h"
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -107,10 +108,20 @@ int main(int argc, char **argv)
 
     // (3). TODO: implement PMF class
 
-    // (4). TODO: training
-    model.fit(100, 0.01);
+    // (4). Fit the model to the training data
+    vector<double> losses = model.fit(200, 0.01);
 
-    // (5). TODO: output losses & prediction results to outdir,
+    // (5). TODO: Evaluate the model on the validation data
+    VectorXd actual = ratings.col(2);
+    VectorXd predicted = model.predict(ratings.leftCols(2));
+    double error = Utils::rmse(actual, predicted);
+    double baseline_zero = Utils::rmse(actual, 0.0);
+    double baseline_avg = Utils::rmse(actual, actual.mean());
+    cout << "RMSE(0): " << baseline_zero << endl;
+    cout << "RMSE(mean): " << baseline_avg << endl;
+    cout << "RMSE(pred): " << error << endl;
+
+    // (6). TODO: output losses & prediction results to outdir,
     //  write python scripts for visualization & other calculations
     return 0;
 }
