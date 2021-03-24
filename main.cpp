@@ -12,7 +12,7 @@
 using namespace std;
 using namespace Eigen;
 using namespace Model;
-
+using namespace chrono;
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -107,9 +107,14 @@ int main(int argc, char **argv)
     // TODO: Pass training ratings instead of all ratings.
     Model::PMF model{ratings, k, std_beta, std_theta};
 
+    const int num_threads = 2;
+    high_resolution_clock::time_point start = high_resolution_clock::now();
     // (3). Fit the model to the training data
-    vector<double> losses = model.fit(200, 0.01);
+    vector<double>
+        losses = model.fit(n_epochs, 0.01, num_threads);
 
+    high_resolution_clock::time_point end = high_resolution_clock::now();
+    cout << duration_cast<duration<double> >(end - start).count() << "seconds \n";
     // (4). TODO: Evaluate the model on the validation data
     VectorXd actual = ratings->rightCols(1);
     VectorXd predicted = model.predict(ratings->leftCols(2));

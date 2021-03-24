@@ -2,6 +2,7 @@
 #include "ratingsdata.h"
 #include "utils.h"
 
+#include <algorithm>
 #include <cmath>
 #include <set>
 #include <thread>
@@ -20,8 +21,10 @@ namespace Model
             << " std_beta=" << std_beta << " std_theta=" << std_theta
             << endl;
 
-        m_users = getUnique(col_value(Cols::user));
-        m_items = getUnique(col_value(Cols::item));
+        const set<int> u = getUnique(col_value(Cols::user));
+        const set<int> i = getUnique(col_value(Cols::item));
+        m_users = vector<int>{u.begin(), u.end()};
+        m_items = vector<int>{i.begin(), i.end()};
 
         default_random_engine generator(time(nullptr));
         normal_distribution<double> dist_beta(0, std_beta);
@@ -36,6 +39,26 @@ namespace Model
 
     PMF::~PMF()
     {
+        stopWorkerThread();
+    }
+
+    void PMF::startWorkerThread()
+    {
+        m_loss_thread = thread([this] {
+            this->loss();
+        });
+
+        cout << "Compute loss thread started. \n";
+    }
+
+    void PMF::stopWorkerThread()
+    {
+        m_run_compute_loss = false;
+        if (m_loss_thread.joinable())
+        {
+            m_loss_thread.join();
+            cout << "Compute loss thread stopped. \n";
+        }
     }
 
     // Gets a set of unique int ID values for column col_idx in m_data
@@ -48,7 +71,7 @@ namespace Model
 
     // Initializes map vmap for each entity with random vector of size m_k with
     // distribution dist
-    void PMF::initVectors(normal_distribution<> &dist, const set<int> &entities,
+    void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities,
                           map<int, VectorXd> &vmap)
     {
         auto rand = [&]() { return dist(d_generator); };
@@ -85,7 +108,9 @@ namespace Model
     void PMF::loss()
     {
         // While either fit users is running or fit items is running.
-        while (!m_stop_fit_users || !m_stop_fit_items)
+        m_run_compute_loss = true;
+
+        while (m_run_compute_loss)
         {
             this_thread::sleep_for(chrono::seconds(10));
 
@@ -129,80 +154,139 @@ namespace Model
         return submatrix;
     }
 
-    vector<double> PMF::fit(int epochs, double gamma)
+    // Fits users of users in m_users in the range [start: end)
+    void PMF::fitUsers(const double gamma, const int start, const int end)
     {
-        Utils::guarded_thread fit_users_thread([=] {
-            for (int epoch = 1; epoch <= epochs; epoch++)
+        for (int n = start; n < end; ++n) //: cpy)
+        {
+            const int i = m_users[n];
+
+            // extract sub-matrix of user i's data
+            const MatrixXd user_data = subsetByID(i, col_value(Cols::user));
+            const VectorXi &j_items = user_data.col(col_value(Cols::item)).cast<int>();
+            const VectorXd &j_ratings = user_data.col(col_value(Cols::rating));
+
+            // compute gradient update of user preference vectors
+            VectorXd grad = -(1.0 / m_std_theta) * m_theta[i];
+
+            for (int idx = 0; idx < j_items.size(); idx++)
             {
-                if (epoch % 10 == 0)
-                {
-                    cout << "[users worker]: user epoch: " << epoch << endl;
-                }
+                int j = j_items(idx);
+                double rating = j_ratings(idx);
+                double rating_hat = m_theta[i].dot(m_beta[j]);
+                grad += (rating - rating_hat) * m_beta[j];
+            }
 
+            VectorXd update = m_theta[i] + gamma * grad;
+            update.normalize();
+
+            {
                 lock_guard<mutex> guard(m_mutex);
+                m_theta[i] = update;
+            }
+        }
+    }
 
-                for (int i : m_users)
+    // Fits items of items in m_items in the range [start: end)
+    void PMF::fitItems(const double gamma, const int start, const int end)
+    {
+        for (int n = start; n < end; ++n)
+        {
+            int j = m_items[n];
+            // extract sub-matrix of item j's data
+            const MatrixXd item_data = subsetByID(j, col_value(Cols::item));
+            const VectorXi &i_users = item_data.col(col_value(Cols::user)).cast<int>();
+            const VectorXd &i_ratings = item_data.col(col_value(Cols::rating));
+
+            // compute gradient update of item attribute vectors
+            VectorXd grad = -(1.0 / m_std_beta) * m_beta[j];
+            for (int idx = 0; idx < i_users.size(); idx++)
+            {
+                int i = i_users(idx);
+                double rating = i_ratings(idx);
+                double rating_hat = m_theta[i].dot(m_beta[j]);
+                grad += (rating - rating_hat) * m_theta[i];
+            }
+
+            VectorXd update = m_beta[j] + gamma * grad;
+
+            update.normalize();
+
+            {
+                lock_guard<mutex> guard(m_mutex);
+                m_beta[j] = update;
+            }
+        }
+    }
+
+    vector<double> PMF::fit(const int epochs, const double gamma,
+                            const int num_threads)
+    {
+        cout << epochs << " epochs \n";
+        cout << "num_threads: " << num_threads << endl;
+
+        const int num_users = m_users.size();
+        const int users_batch_size = num_users / num_threads;
+
+        cout << "Fitting " << num_users
+             << " users in batch size of " << users_batch_size << endl;
+
+        const int num_items = m_items.size();
+        const int items_batch_size = num_items / num_threads;
+
+        cout << "Fitting " << num_items
+             << " items in batch size of " << items_batch_size << endl;
+
+        startWorkerThread();
+
+        for (int epoch = 1; epoch <= epochs; epoch++)
+        {
+
+            if (epoch % 10 == 0)
+            {
+                cout << "epoch: " << epoch << endl;
+            }
+
+            vector<thread> threadpool;
+
+            int user_start = 0;
+            while (user_start < num_users)
+            {
+                const int user_end = min(num_users, user_start + users_batch_size);
+
+                threadpool.push_back(thread([this, gamma, user_start, user_end] {
+                    // cout << "Creating user thread with start: " << user_start
+                    //      << ". user_end: " << user_end << endl;
+                    this->fitUsers(gamma, user_start, user_end);
+                }));
+
+                user_start += users_batch_size;
+            }
+
+            int items_start = 0;
+            while (items_start < num_items)
+            {
+                const int items_end = min(num_items, items_start + items_batch_size);
+
+                threadpool.push_back(thread([this, gamma, items_start, items_end] {
+                    // cout << "Creating items thread with start: " << items_start
+                    //      << ". items_end: " << items_end << endl;
+                    this->fitItems(gamma, items_start, items_end);
+                }));
+
+                items_start += items_batch_size;
+            }
+
+            for (auto &t : threadpool)
+            {
+                if (t.joinable())
                 {
-
-                    // extract sub-matrix of user i's data
-                    const MatrixXd user_data = subsetByID(i, col_value(Cols::user));
-                    const VectorXi &j_items = user_data.col(col_value(Cols::item)).cast<int>();
-                    const VectorXd &j_ratings = user_data.col(col_value(Cols::rating));
-
-                    // compute gradient update of user preference vectors
-                    VectorXd grad = -(1.0 / m_std_theta) * m_theta[i];
-                    for (int idx = 0; idx < j_items.size(); idx++)
-                    {
-                        int j = j_items(idx);
-                        double rating = j_ratings(idx);
-                        double rating_hat = m_theta[i].dot(m_beta[j]);
-                        grad += (rating - rating_hat) * m_beta[j];
-                    }
-                    VectorXd update = m_theta[i] + gamma * grad;
-                    update.normalize();
-                    m_theta[i] = update;
+                    t.join();
                 }
             }
-            m_stop_fit_users = true;
-        });
+        } // epochs
 
-        Utils::guarded_thread fit_items_thread([=] {
-            for (int epoch = 1; epoch <= epochs; epoch++)
-            {
-                if (epoch % 10 == 0)
-                {
-                    cout << "[items worker]: items epoch: " << epoch << endl;
-                }
-
-                lock_guard<mutex> guard(m_mutex);
-
-                // update beta vectors
-                for (int j : m_items)
-                {
-
-                    // extract sub-matrix of item j's data
-                    const MatrixXd item_data = subsetByID(j, col_value(Cols::item));
-                    const VectorXi &i_users = item_data.col(col_value(Cols::user)).cast<int>();
-                    const VectorXd &i_ratings = item_data.col(col_value(Cols::rating));
-
-                    // compute gradient update of item attribute vectors
-                    VectorXd grad = -(1.0 / m_std_beta) * m_beta[j];
-                    for (int idx = 0; idx < i_users.size(); idx++)
-                    {
-                        int i = i_users(idx);
-                        double rating = i_ratings(idx);
-                        double rating_hat = m_theta[i].dot(m_beta[j]);
-                        grad += (rating - rating_hat) * m_theta[i];
-                    }
-                    VectorXd update = m_beta[j] + gamma * grad;
-                    update.normalize();
-                    m_beta[j] = update;
-                }
-            }
-            m_stop_fit_items = true;
-        });
-
-        loss();
+        stopWorkerThread();
 
         return m_losses;
     }
