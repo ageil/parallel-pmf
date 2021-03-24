@@ -6,7 +6,6 @@
 
 #include "csvlib/csv.h"
 #include "models/PMF.h"
-#include "models/ratingsdata.h"
 #include "models/utils.h"
 
 #include <boost/program_options.hpp>
@@ -15,7 +14,6 @@
 using namespace std;
 using namespace Model;
 using namespace chrono;
-using namespace RatingsData;
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 

@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <set>
 #include <thread>
 #include <gsl/gsl_assert>
 
@@ -245,11 +244,11 @@ namespace Model
             {
                 const int user_end = min(num_users, user_start + users_batch_size);
 
-                threadpool.push_back(thread([this, gamma, user_start, user_end] {
+                threadpool.emplace_back([this, gamma, user_start, user_end] {
                     // cout << "Creating user thread with start: " << user_start
                     //      << ". user_end: " << user_end << endl;
                     this->fitUsers(gamma, user_start, user_end);
-                }));
+                });
 
                 user_start += users_batch_size;
             }
@@ -259,11 +258,11 @@ namespace Model
             {
                 const int items_end = min(num_items, items_start + items_batch_size);
 
-                threadpool.push_back(thread([this, gamma, items_start, items_end] {
+                threadpool.emplace_back([this, gamma, items_start, items_end] {
                     // cout << "Creating items thread with start: " << items_start
                     //      << ". items_end: " << items_end << endl;
                     this->fitItems(gamma, items_start, items_end);
-                }));
+                });
 
                 items_start += items_batch_size;
             }
