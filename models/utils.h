@@ -25,9 +25,8 @@ namespace Model
         // TODO: need docs for r2
         double r2(const VectorXd &y, const VectorXd &y_hat);
 
-        // TODO: need docs for topN. Returns pair of <presision, recall>
-        pair<double, double> topN(const PMF &pmfModel, const MatrixXd &data,
-                                  const int N = 10);
+        // TODO: need docs for topN. Returns pair of <precision, recall>
+        pair<double, double> topN(const PMF &pmfModel, const MatrixXd &data, const int N = 10);
 
         struct guarded_thread : std::thread
         {

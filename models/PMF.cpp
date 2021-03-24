@@ -12,21 +12,20 @@ namespace Model
 {
     using namespace RatingsData;
 
-    PMF::PMF(const shared_ptr<MatrixXd> &data, const int k, const double std_beta, const double std_theta)
-        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta)
+    PMF::PMF(const shared_ptr<MatrixXd> &data,
+             const int k,
+             const double std_beta,
+             const double std_theta,
+             const vector<int> &users,
+             const vector<int> &items)
+            : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(users), m_items(items)
     {
         cout
-            << "Initializing PMF with `data` size " << m_data->rows()
-            << " x " << m_data->cols() << " with k=" << k
-            << " std_beta=" << std_beta << " std_theta=" << std_theta
-            << endl;
+                << "Initializing PMF with `data` size " << m_data->rows()
+                << " x " << m_data->cols() << " with k=" << k
+                << " std_beta=" << std_beta << " std_theta=" << std_theta
+                << endl;
 
-        const set<int> u = getUnique(col_value(Cols::user));
-        const set<int> i = getUnique(col_value(Cols::item));
-        m_users = vector<int>{u.begin(), u.end()};
-        m_items = vector<int>{i.begin(), i.end()};
-
-        default_random_engine generator(time(nullptr));
         normal_distribution<double> dist_beta(0, std_beta);
         normal_distribution<double> dist_theta(0, std_theta);
 
@@ -59,14 +58,6 @@ namespace Model
             m_loss_thread.join();
             cout << "Compute loss thread stopped. \n";
         }
-    }
-
-    // Gets a set of unique int ID values for column col_idx in m_data
-    set<int> PMF::getUnique(int col_idx)
-    {
-        const MatrixXd &col = m_data->col(col_idx);
-        set<int> unique{col.data(), col.data() + col.size()};
-        return unique;
     }
 
     // Initializes map vmap for each entity with random vector of size m_k with

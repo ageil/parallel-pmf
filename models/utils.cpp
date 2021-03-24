@@ -1,6 +1,5 @@
 #include "utils.h"
 #include "PMF.h"
-
 #include <cmath>
 #include <iostream>
 

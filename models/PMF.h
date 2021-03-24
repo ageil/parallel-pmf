@@ -20,7 +20,6 @@ namespace Model
         class PMF
         {
         private:
-                set<int> getUnique(int col_idx);
                 void initVectors(normal_distribution<> &dist, const vector<int> &entities, map<int, VectorXd> &vmap);
                 MatrixXd subsetByID(int ID, int column);
                 double logNormPDF(const VectorXd &x, double loc = 0.0, double scale = 1.0);
@@ -49,14 +48,13 @@ namespace Model
                 mutex m_mutex;
 
         public:
-                PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta);
+                PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta, const vector<int> &users, const vector<int> &items);
+                //PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta);
                 ~PMF();
 
                 vector<double> fit(const int epochs, const double gamma, const int num_threads);
                 VectorXd predict(const MatrixXd &data);
                 VectorXd recommend(int user);
-
-                //todo: specify return type for "norm_vectors" functions in model.py
         };
 } //namespace Model
 
