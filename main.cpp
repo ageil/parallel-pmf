@@ -91,6 +91,7 @@ int main(int argc, char **argv)
     int n_epochs = 200;  // default # of iterations
     double gamma = 0.01; // default learning rate for gradient descent
     double ratio = 0.7; // train-test split ratio
+    int batch_size = 2000;
     int n_threads = 2;
 
     po::options_description desc("Parameters for Probabilistic Matrix Factorization (PMF)");
@@ -139,13 +140,13 @@ int main(int argc, char **argv)
 
     // (2). Fit the model to the training data
     auto t0 = chrono::steady_clock::now();
-    vector<double> losses = model.fit(n_epochs, gamma, n_threads);
+    vector<double> losses = model.fit(n_epochs, gamma, batch_size, n_threads);
     auto t1 = chrono::steady_clock::now();
     double delta_t = std::chrono::duration<double, std::milli> (t1 - t0).count() * 0.001;
     cout << "Running time for " << n_epochs << " iterations: " << delta_t << " s." << endl;
     cout << endl;
 
-    // (3). TODO: Evaluate the model on the validation data
+    // (3).Evaluate the model on the test data
     VectorXd actual = ratings_test->rightCols(1);
     VectorXd predicted = model.predict(ratings_test->leftCols(2));
     double error = Utils::rmse(actual, predicted);
