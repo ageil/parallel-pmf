@@ -21,15 +21,15 @@ namespace Model
         {
         private:
                 void initVectors(normal_distribution<> &dist, const vector<int> &entities, map<int, VectorXd> &vmap);
-                MatrixXd subsetByID(int ID, int column);
+                MatrixXd subsetByID(const Ref<MatrixXd> &batch, int ID, int column);
                 double logNormPDF(const VectorXd &x, double loc = 0.0, double scale = 1.0);
                 double logNormPDF(double x, double loc = 0.0, double scale = 1.0);
                 void loss();
                 void startWorkerThread();
                 void stopWorkerThread();
 
-                void fitUsers(const double gamma, const int start, const int end);
-                void fitItems(const double gamma, const int start, const int end);
+                void fitUsers(const Ref<MatrixXd> &batch, const double learning_rate);
+                void fitItems(const Ref<MatrixXd> &batch, const double learning_rate);
 
                 const shared_ptr<MatrixXd> m_data;
                 const int m_k;
@@ -52,7 +52,7 @@ namespace Model
                 //PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta);
                 ~PMF();
 
-                vector<double> fit(const int epochs, const double gamma, const int num_threads);
+                vector<double> fit(const int epochs, const double gamma, const int batch_size, const int num_threads);
                 VectorXd predict(const MatrixXd &data);
                 VectorXd recommend(int user);
         };

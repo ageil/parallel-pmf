@@ -59,8 +59,8 @@ namespace Model
         }
     }
 
-    // Initializes map vmap for each entity with random vector of size m_k with
-    // distribution dist
+    // Initializes map vmap for each entity with random vector of size m_k
+    // sampling from distribution dist
     void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities,
                           map<int, VectorXd> &vmap)
     {
@@ -128,143 +128,121 @@ namespace Model
     }
 
     // Subset m_data by rows where values in column is equal to ID
-    MatrixXd PMF::subsetByID(int ID, int column)
+    MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column)
     {
-        VectorXi idx = (m_data->col(column).array() == ID).cast<int>();
-        MatrixXd submatrix(idx.sum(), m_data->cols());
+        VectorXi isID = (batch.col(column).array() == ID).cast<int>();  // which rows have ID in col?
+        int num_rows = isID.sum();
+        int num_cols = batch.cols();
+        MatrixXd submatrix(num_rows, num_cols);
         int cur_row = 0;
-        for (int i = 0; i < m_data->rows(); ++i)
+        for (int i = 0; i < batch.rows(); ++i)
         {
-            if (idx[i])
+            if (isID[i])
             {
-                submatrix.row(cur_row) = m_data->row(i);
+                submatrix.row(cur_row) = batch.row(i);
                 cur_row++;
             }
         }
         return submatrix;
     }
 
-    // Fits users of users in m_users in the range [start: end)
-    void PMF::fitUsers(const double gamma, const int start, const int end)
+    // Fit user preference vectors to sample data in batch m_data[start_row:end_row]
+    void PMF::fitUsers(const Ref<MatrixXd> &batch, const double learning_rate)
     {
-        for (int n = start; n < end; ++n) //: cpy)
-        {
-            const int i = m_users[n];
+        MatrixXd users = batch.col(col_value(Cols::user));
+        set<int> unique_users = {users.data(), users.data() + users.size()};
 
-            // extract sub-matrix of user i's data
-            const MatrixXd user_data = subsetByID(i, col_value(Cols::user));
-            const VectorXi &j_items = user_data.col(col_value(Cols::item)).cast<int>();
-            const VectorXd &j_ratings = user_data.col(col_value(Cols::rating));
+        for (auto& usrID: unique_users)
+        {
+            // extract sub-matrix of user usrID's in batch
+            const MatrixXd user_data = subsetByID(batch, usrID, col_value(Cols::user));
+            const VectorXi &items = user_data.col(col_value(Cols::item)).cast<int>();
+            const VectorXd &ratings = user_data.col(col_value(Cols::rating));
 
             // compute gradient update of user preference vectors
-            VectorXd grad = -(1.0 / m_std_theta) * m_theta[i];
+            VectorXd grad = -(1.0 / m_std_theta) * m_theta[usrID];
 
-            for (int idx = 0; idx < j_items.size(); idx++)
+            for (int idx = 0; idx < items.size(); idx++)
             {
-                int j = j_items(idx);
-                double rating = j_ratings(idx);
-                double rating_hat = m_theta[i].dot(m_beta[j]);
-                grad += (rating - rating_hat) * m_beta[j];
+                int itmID = items(idx);
+                double rating = ratings(idx);
+                double rating_hat = m_theta[usrID].dot(m_beta[itmID]);
+                grad += (rating - rating_hat) * m_beta[itmID];
             }
 
-            VectorXd update = m_theta[i] + gamma * grad;
+            VectorXd update = m_theta[usrID] + learning_rate * grad;
             update.normalize();
-
-            {
-                lock_guard<mutex> guard(m_mutex);
-                m_theta[i] = update;
-            }
+            m_theta[usrID] = update;  // note: no lock needed
         }
     }
 
     // Fits items of items in m_items in the range [start: end)
-    void PMF::fitItems(const double gamma, const int start, const int end)
+    void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
     {
-        for (int n = start; n < end; ++n)
+        MatrixXd items = batch.col(col_value(Cols::item));
+        set<int> unique_items = {items.data(), items.data() + items.size()};
+
+        for (auto& itmID: unique_items)
         {
-            int j = m_items[n];
-            // extract sub-matrix of item j's data
-            const MatrixXd item_data = subsetByID(j, col_value(Cols::item));
-            const VectorXi &i_users = item_data.col(col_value(Cols::user)).cast<int>();
-            const VectorXd &i_ratings = item_data.col(col_value(Cols::rating));
+            // extract sub-matrix of item itmID's data
+            const MatrixXd item_data = subsetByID(batch, itmID, col_value(Cols::item));
+            const VectorXi &users = item_data.col(col_value(Cols::user)).cast<int>();
+            const VectorXd &ratings = item_data.col(col_value(Cols::rating));
 
             // compute gradient update of item attribute vectors
-            VectorXd grad = -(1.0 / m_std_beta) * m_beta[j];
-            for (int idx = 0; idx < i_users.size(); idx++)
+            VectorXd grad = -(1.0 / m_std_beta) * m_beta[itmID];
+            for (int idx = 0; idx < users.size(); idx++)
             {
-                int i = i_users(idx);
-                double rating = i_ratings(idx);
-                double rating_hat = m_theta[i].dot(m_beta[j]);
-                grad += (rating - rating_hat) * m_theta[i];
+                int usrID = users(idx);
+                double rating = ratings(idx);
+                double rating_hat = m_theta[usrID].dot(m_beta[itmID]);
+                grad += (rating - rating_hat) * m_theta[usrID];
             }
 
-            VectorXd update = m_beta[j] + gamma * grad;
-
+            VectorXd update = m_beta[itmID] + learning_rate * grad;
             update.normalize();
-
-            {
-                lock_guard<mutex> guard(m_mutex);
-                m_beta[j] = update;
-            }
+            m_beta[itmID] = update;  // note: no lock needed
         }
     }
 
-    vector<double> PMF::fit(const int epochs, const double gamma,
-                            const int num_threads)
+    vector<double> PMF::fit(const int epochs, const double gamma, const int batch_size, const int num_threads)
     {
         cout << epochs << " epochs \n";
         cout << "num_threads: " << num_threads << endl;
 
-        const int num_users = m_users.size();
-        const int users_batch_size = num_users / num_threads;
-
-        cout << "Fitting " << num_users
-             << " users in batch size of " << users_batch_size << endl;
-
-        const int num_items = m_items.size();
-        const int items_batch_size = num_items / num_threads;
-
-        cout << "Fitting " << num_items
-             << " items in batch size of " << items_batch_size << endl;
+        int max_rows = m_data->rows();
+        int num_batches = max_rows / batch_size;
 
         startWorkerThread();
 
         for (int epoch = 1; epoch <= epochs; epoch++)
         {
-
             if (epoch % 10 == 0)
             {
                 cout << "epoch: " << epoch << endl;
             }
 
             vector<thread> threadpool;
-
-            int user_start = 0;
-            while (user_start < num_users)
+            int cur_batch = 0;
+            while (cur_batch <= num_batches)
             {
-                const int user_end = min(num_users, user_start + users_batch_size);
+                // compute start/end indices for current batch
+                const int row_start = cur_batch * batch_size;
+                const int num_rows = min(max_rows - row_start, batch_size);
+                const int col_start = col_value(Cols::user);
+                const int num_cols = col_value(Cols::rating) + 1;
 
-                threadpool.emplace_back([this, gamma, user_start, user_end] {
-                    // cout << "Creating user thread with start: " << user_start
-                    //      << ". user_end: " << user_end << endl;
-                    this->fitUsers(gamma, user_start, user_end);
+                // reference batch of data
+                Ref<MatrixXd> batch = m_data->block(row_start, col_start, num_rows, num_cols);
+//                cout << "batch " << cur_batch << "/" << num_batches << endl;
+//                cout << "row " << row_start << "-" << row_start + num_rows << " of " << m_data->rows() << endl;
+
+                // add batch fit tasks to thread pool
+                threadpool.emplace_back([this, batch, gamma] {
+                    this->fitUsers(batch, gamma);
+                    this->fitItems(batch, gamma);
                 });
-
-                user_start += users_batch_size;
-            }
-
-            int items_start = 0;
-            while (items_start < num_items)
-            {
-                const int items_end = min(num_items, items_start + items_batch_size);
-
-                threadpool.emplace_back([this, gamma, items_start, items_end] {
-                    // cout << "Creating items thread with start: " << items_start
-                    //      << ". items_end: " << items_end << endl;
-                    this->fitItems(gamma, items_start, items_end);
-                });
-
-                items_start += items_batch_size;
+                cur_batch += 1;
             }
 
             for (auto &t : threadpool)
@@ -275,7 +253,6 @@ namespace Model
                 }
             }
         } // epochs
-
         stopWorkerThread();
 
         return m_losses;
