@@ -4,7 +4,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
+#include <set>
 #include <thread>
+
 #include <gsl/gsl_assert>
 
 namespace Model
@@ -17,19 +20,19 @@ namespace Model
              const double std_theta,
              const vector<int> &users,
              const vector<int> &items)
-            : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(users), m_items(items)
+        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(users), m_items(items)
     {
         cout
-                << "Initializing PMF with `data` size " << m_data->rows()
-                << " x " << m_data->cols() << " with k=" << k
-                << " std_beta=" << std_beta << " std_theta=" << std_theta
-                << endl;
+            << "Initializing PMF with `data` size " << m_data->rows()
+            << " x " << m_data->cols() << " with k=" << k
+            << " std_beta=" << std_beta << " std_theta=" << std_theta
+            << endl;
 
         normal_distribution<double> dist_beta(0, std_beta);
         normal_distribution<double> dist_theta(0, std_theta);
 
         initVectors(dist_theta, m_users, m_theta);
-        cout << "Initialized " << m_theta.size() << " users in theta map \n";
+        cout << "Initialized " << m_theta.size() << " users ibtheta map \n";
 
         initVectors(dist_beta, m_items, m_beta);
         cout << "Initialized " << m_beta.size() << " items in beta map \n";
@@ -37,26 +40,7 @@ namespace Model
 
     PMF::~PMF()
     {
-        stopWorkerThread();
-    }
-
-    void PMF::startWorkerThread()
-    {
-        m_loss_thread = thread([this] {
-            this->loss();
-        });
-
-        cout << "Compute loss thread started. \n";
-    }
-
-    void PMF::stopWorkerThread()
-    {
-        m_run_compute_loss = false;
-        if (m_loss_thread.joinable())
-        {
-            m_loss_thread.join();
-            cout << "Compute loss thread stopped. \n";
-        }
+        m_fit_in_progress = false;
     }
 
     // Initializes map vmap for each entity with random vector of size m_k
@@ -97,40 +81,54 @@ namespace Model
     // Calculate the log probability of the data under the current model
     void PMF::loss()
     {
-        // While either fit users is running or fit items is running.
-        m_run_compute_loss = true;
+        m_fit_in_progress = true;
 
-        while (m_run_compute_loss)
+        while (m_fit_in_progress)
         {
-            this_thread::sleep_for(chrono::seconds(10));
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_cv.wait(lock, [this] { return !m_loss_queue.empty(); });
 
-            double l;
-            for (auto &i : m_users)
+            const ThetaBetaSnapshot snapshot = m_loss_queue.front();
+
+            m_loss_queue.pop();
+
+            lock.unlock();
+
+            const auto theta_snapshot = snapshot.theta;
+            const auto beta_snapshot = snapshot.beta;
+
+            double loss = 0;
+
+            for (const auto user_id : m_users)
             {
-                l += logNormPDF(m_theta.at(i));
+                loss += logNormPDF(theta_snapshot.at(user_id));
             }
-            for (auto &j : m_items)
+
+            for (const auto item_id : m_items)
             {
-                l += logNormPDF(m_beta.at(j));
+                loss += logNormPDF(beta_snapshot.at(item_id));
             }
+
             for (int idx = 0; idx < m_data->rows(); idx++)
             {
                 int i = (*m_data)(idx, 0);
                 int j = (*m_data)(idx, 1);
+
                 double r = (*m_data)(idx, 2);
-                double r_hat = m_theta.at(i).dot(m_beta.at(j));
-                l += logNormPDF(r, r_hat);
+                double r_hat = theta_snapshot.at(i).dot(beta_snapshot.at(j));
+
+                loss += logNormPDF(r, r_hat);
             }
 
-            m_losses.push_back(l);
-            cout << "loss: " << l << endl;
+            m_losses.push_back(loss);
+            cout << "loss: " << loss << endl;
         }
     }
 
     // Subset m_data by rows where values in column is equal to ID
     MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column)
     {
-        VectorXi isID = (batch.col(column).array() == ID).cast<int>();  // which rows have ID in col?
+        VectorXi isID = (batch.col(column).array() == ID).cast<int>(); // which rows have ID in col?
         int num_rows = isID.sum();
         int num_cols = batch.cols();
         MatrixXd submatrix(num_rows, num_cols);
@@ -152,7 +150,7 @@ namespace Model
         MatrixXd users = batch.col(col_value(Cols::user));
         set<int> unique_users = {users.data(), users.data() + users.size()};
 
-        for (auto& usrID: unique_users)
+        for (auto &usrID : unique_users)
         {
             // extract sub-matrix of user usrID's in batch
             const MatrixXd user_data = subsetByID(batch, usrID, col_value(Cols::user));
@@ -172,17 +170,16 @@ namespace Model
 
             VectorXd update = m_theta[usrID] + learning_rate * grad;
             update.normalize();
-            m_theta[usrID] = update;  // note: no lock needed
+            m_theta[usrID] = update; // note: no lock needed
         }
     }
 
-    // Fits items of items in m_items in the range [start: end)
     void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
     {
         MatrixXd items = batch.col(col_value(Cols::item));
         set<int> unique_items = {items.data(), items.data() + items.size()};
 
-        for (auto& itmID: unique_items)
+        for (auto &itmID : unique_items)
         {
             // extract sub-matrix of item itmID's data
             const MatrixXd item_data = subsetByID(batch, itmID, col_value(Cols::item));
@@ -201,28 +198,36 @@ namespace Model
 
             VectorXd update = m_beta[itmID] + learning_rate * grad;
             update.normalize();
-            m_beta[itmID] = update;  // note: no lock needed
+            m_beta[itmID] = update; // note: no lock needed
         }
     }
 
     vector<double> PMF::fit(const int epochs, const double gamma, const int batch_size, const int num_threads)
     {
-        cout << epochs << " epochs \n";
-        cout << "num_threads: " << num_threads << endl;
+        cout << epochs << " epochs \n"
+             << "num_threads: " << num_threads << endl;
 
-        int max_rows = m_data->rows();
-        int num_batches = max_rows / batch_size;
+        const int max_rows = m_data->rows();
+        const int num_batches = max_rows / batch_size;
 
-        startWorkerThread();
+        Utils::guarded_thread compute_loss([this] { this->loss(); });
 
         for (int epoch = 1; epoch <= epochs; epoch++)
         {
             if (epoch % 10 == 0)
             {
+                {
+                    lock_guard<mutex> lock(m_mutex);
+                    m_loss_queue.emplace(m_theta, m_beta);
+                }
+
+                m_cv.notify_one();
+
                 cout << "epoch: " << epoch << endl;
             }
 
-            vector<thread> threadpool;
+            vector<Utils::guarded_thread> threadpool;
+
             int cur_batch = 0;
             while (cur_batch <= num_batches)
             {
@@ -234,31 +239,23 @@ namespace Model
 
                 // reference batch of data
                 Ref<MatrixXd> batch = m_data->block(row_start, col_start, num_rows, num_cols);
-//                cout << "batch " << cur_batch << "/" << num_batches << endl;
-//                cout << "row " << row_start << "-" << row_start + num_rows << " of " << m_data->rows() << endl;
 
                 // add batch fit tasks to thread pool
                 threadpool.emplace_back([this, batch, gamma] {
                     this->fitUsers(batch, gamma);
                     this->fitItems(batch, gamma);
                 });
+
                 cur_batch += 1;
             }
 
-            for (auto &t : threadpool)
-            {
-                if (t.joinable())
-                {
-                    t.join();
-                }
-            }
         } // epochs
-        stopWorkerThread();
 
+        m_fit_in_progress = false;
         return m_losses;
     }
 
-    // Predict ratings using learned theta and beta vectors in model
+    // Predict ratings using learnebtheta and beta vectors in model
     // Input: data matrix with n rows and 2 columns (user, item)
     // Returns a vector of predicted ratings for each user and item
     VectorXd PMF::predict(const MatrixXd &data)

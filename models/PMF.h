@@ -1,14 +1,13 @@
 #ifndef PMF_H
 #define PMF_H
 
-#include <atomic>
-#include <iostream>
+#include <condition_variable>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <queue>
 #include <random>
-#include <set>
-#include <thread>
+#include <utility>
 
 #include <Eigen/Dense>
 
@@ -16,6 +15,16 @@ namespace Model
 {
         using namespace std;
         using namespace Eigen;
+
+        struct ThetaBetaSnapshot
+        {
+                ThetaBetaSnapshot(const map<int, VectorXd> theta,
+                                  const map<int, VectorXd> beta)
+                    : theta(theta), beta(beta){};
+
+                const map<int, VectorXd> theta;
+                const map<int, VectorXd> beta;
+        };
 
         class PMF
         {
@@ -25,8 +34,6 @@ namespace Model
                 double logNormPDF(const VectorXd &x, double loc = 0.0, double scale = 1.0);
                 double logNormPDF(double x, double loc = 0.0, double scale = 1.0);
                 void loss();
-                void startWorkerThread();
-                void stopWorkerThread();
 
                 void fitUsers(const Ref<MatrixXd> &batch, const double learning_rate);
                 void fitItems(const Ref<MatrixXd> &batch, const double learning_rate);
@@ -42,14 +49,13 @@ namespace Model
                 vector<double> m_losses;
                 default_random_engine d_generator;
 
-                atomic_bool m_run_compute_loss;
-                thread m_loss_thread;
-
                 mutex m_mutex;
+                condition_variable m_cv;
+                atomic_bool m_fit_in_progress;
+                queue<ThetaBetaSnapshot> m_loss_queue;
 
         public:
                 PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta, const vector<int> &users, const vector<int> &items);
-                //PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta);
                 ~PMF();
 
                 vector<double> fit(const int epochs, const double gamma, const int batch_size, const int num_threads);
