@@ -31,9 +31,9 @@ namespace Model
         {
         private:
                 void initVectors(normal_distribution<> &dist, const vector<int> &entities, map<int, VectorXd> &vmap);
-                MatrixXd subsetByID(const Ref<MatrixXd> &batch, int ID, int column);
                 double logNormPDF(const VectorXd &x, double loc = 0.0, double scale = 1.0);
                 double logNormPDF(double x, double loc = 0.0, double scale = 1.0);
+                static VectorXd argsort(const VectorXd &x, const string &option);
                 void loss();
 
                 void fitUsers(const Ref<MatrixXd> &batch, const double learning_rate);
@@ -52,16 +52,16 @@ namespace Model
 
                 mutex m_mutex;
                 condition_variable m_cv;
-                atomic_bool m_fit_in_progress;
+                bool m_fit_in_progress;
                 queue<ThetaBetaSnapshot> m_loss_queue;
 
         public:
                 PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta, const vector<int> &users, const vector<int> &items);
                 ~PMF();
-
                 vector<double> fit(const int epochs, const double gamma, const int batch_size, const int num_threads);
                 VectorXd predict(const MatrixXd &data);
-                VectorXd recommend(int user);
+                MatrixXd subsetByID(const Ref<MatrixXd> &batch, int ID, int column);
+                VectorXd recommend(int user_id);
         };
 } //namespace Model
 

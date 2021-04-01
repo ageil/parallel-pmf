@@ -13,6 +13,7 @@
 
 using namespace std;
 using namespace Model;
+using namespace Utils;
 using namespace chrono;
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -132,7 +133,7 @@ int main(int argc, char **argv)
     shared_ptr<MatrixXd> ratings = make_shared<MatrixXd>(loadData(input));
     vector<int> users = getUnique(ratings, 0);
     vector<int> items = getUnique(ratings, 1);
-    auto [ratings_train, ratings_test] = splitData(ratings, ratio);
+    auto [ratings_train, ratings_test] = splitData(ratings, ratio); // dtype: shared_ptr<MatrixXd>
     const double std_beta = 1.0;
     const double std_theta = 1.0;
 
@@ -147,17 +148,23 @@ int main(int argc, char **argv)
     cout << endl;
 
     // (3).Evaluate the model on the test data
+    // RMSE of baseline, avg. & learnt model
     VectorXd actual = ratings_test->rightCols(1);
     VectorXd predicted = model.predict(ratings_test->leftCols(2));
     double error = Utils::rmse(actual, predicted);
     double baseline_zero = Utils::rmse(actual, 0.0);
     double baseline_avg = Utils::rmse(actual, actual.mean());
+
+    // precision & recall of the top N items recommended for each user
+    // int N = 10;
+    // auto[prec, recall] = Utils::topN(model, ratings_test, N); // dtype: double
+
     cout << "RMSE(0): " << baseline_zero << endl;
     cout << "RMSE(mean): " << baseline_avg << endl;
     cout << "RMSE(pred): " << error << endl;
+    // cout << "Metrics(pred) for top " << N << " reccommended items for each user\n"
+    //     << "Precision: " << prec << " Recall: " << recall << endl;
 
     // (4). TODO: output losses & prediction results to outdir,
     //  write python scripts for visualization & other calculations
-
-    return 0;
 }

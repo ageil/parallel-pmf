@@ -78,6 +78,33 @@ namespace Model
         return log_prob;
     }
 
+    // Return the indices that would sort the input input vector
+    // Reference: https://stackoverflow.com/questions/25921706/creating-a-vector-of-indices-of-a-sorted-vector
+    VectorXd PMF::argsort(const VectorXd &x, const string &option)
+    {
+        Expects(option == "ascent" or option == "descent");
+
+        vector<double> vi (x.size());
+        VectorXd::Map(vi.data(), x.size()) = x;
+
+        vector<double> indices (x.size());
+        int idx = 0;
+        std::generate(indices.begin(), indices.end(), [&] { return idx++; });
+
+        if (option == "ascent")
+        {
+            std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] < vi[b]; });
+        }
+        else
+        {
+            std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] > vi[b]; });
+        }
+
+        Eigen::Map<VectorXd> indices_sorted(indices.data(), indices.size());
+
+        return indices_sorted ;
+    }
+
     // Calculate the log probability of the data under the current model
     void PMF::loss()
     {
@@ -253,7 +280,7 @@ namespace Model
         return m_losses;
     }
 
-    // Predict ratings using learnebtheta and beta vectors in model
+    // Predict ratings using learnt theta and beta vectors in model
     // Input: data matrix with n rows and 2 columns (user, item)
     // Returns a vector of predicted ratings for each user and item
     VectorXd PMF::predict(const MatrixXd &data)
@@ -276,11 +303,31 @@ namespace Model
         return predictions;
     }
 
-    VectorXd PMF::recommend(int user)
+    VectorXd PMF::recommend(int user_id)
     {
-        cerr << "Not implemented yet" << endl;
-        VectorXd v;
-        return v;
+        vector<double> vi_items {};
+        for (auto & it : m_beta) {
+            vi_items.push_back(it.first);
+        }
+
+        Eigen::Map<VectorXd> items(vi_items.data(), vi_items.size());
+        VectorXd user(items.size());
+        user.setConstant(user_id);
+
+        MatrixXd usr_data(items.size(), 2);
+        usr_data.col(0) = user;
+        usr_data.col(1) = items;
+
+        VectorXd predictions = predict(usr_data);
+        VectorXd item_indices = argsort(predictions, "descend");
+
+        VectorXd items_rec (items.size()); // all user i items (most recommended --> least recommended)
+        for (int i = 0; i < items.size(); i++)
+        {
+            items_rec[i] = items[item_indices[i]];
+        }
+
+        return items_rec;
     }
 
 } // namespace Model
