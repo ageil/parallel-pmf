@@ -122,7 +122,6 @@ namespace Model
             m_losses.push_back(loss);
             cout << "loss: " << loss << endl;
         }
-        cout << "TOTAL COUNT: " << count << endl;
     }
 
     // Subset m_data by rows where values in column is equal to ID

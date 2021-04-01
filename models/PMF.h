@@ -1,6 +1,7 @@
 #ifndef PMF_H
 #define PMF_H
 
+#include <atomic>
 #include <condition_variable>
 #include <map>
 #include <memory>
