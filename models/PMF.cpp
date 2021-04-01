@@ -83,13 +83,12 @@ namespace Model
     {
         m_fit_in_progress = true;
 
-        while (m_fit_in_progress)
+        while (m_fit_in_progress || !m_loss_queue.empty())
         {
             std::unique_lock<std::mutex> lock(m_mutex);
             m_cv.wait(lock, [this] { return !m_loss_queue.empty(); });
 
             const ThetaBetaSnapshot snapshot = m_loss_queue.front();
-
             m_loss_queue.pop();
 
             lock.unlock();
@@ -123,6 +122,7 @@ namespace Model
             m_losses.push_back(loss);
             cout << "loss: " << loss << endl;
         }
+        cout << "TOTAL COUNT: " << count << endl;
     }
 
     // Subset m_data by rows where values in column is equal to ID
@@ -222,7 +222,6 @@ namespace Model
                 }
 
                 m_cv.notify_one();
-
                 cout << "epoch: " << epoch << endl;
             }
 
