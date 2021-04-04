@@ -13,7 +13,13 @@ add_subdirectory(models)
 
 set(SOURCES main.cpp) 
 
-add_executable(main.tsk
-               ${SOURCES})
+# tests cases
+enable_testing()
+
+add_executable(main.tsk ${SOURCES})
+
+add_executable(unit_test.tsk test/utils_test.cpp models/utils.h)
                
 target_link_libraries(main.tsk ${Boost_LIBRARIES} models Threads::Threads)
+
+target_link_libraries(unit_test.tsk models )
