@@ -10,7 +10,9 @@ FetchContent_Declare(GSL
 )
 
 FetchContent_MakeAvailable(GSL)
-target_link_libraries (models PUBLIC
+
+target_link_libraries(models PUBLIC
+    ${Boost_LIBRARIES}
     Eigen3::Eigen
     Microsoft.GSL::GSL
     )

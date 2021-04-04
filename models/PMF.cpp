@@ -21,13 +21,13 @@ namespace Model
              const double std_theta,
              const vector<int> &users,
              const vector<int> &items)
-            : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(users), m_items(items)
+        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(users), m_items(items)
     {
         cout
-                << "Initializing PMF with `data` size " << m_data->rows()
-                << " x " << m_data->cols() << " with k=" << k
-                << " std_beta=" << std_beta << " std_theta=" << std_theta
-                << endl;
+            << "Initializing PMF with `data` size " << m_data->rows()
+            << " x " << m_data->cols() << " with k=" << k
+            << " std_beta=" << std_beta << " std_theta=" << std_theta
+            << endl;
 
         normal_distribution<double> dist_beta(0, std_beta);
         normal_distribution<double> dist_theta(0, std_theta);
@@ -102,7 +102,10 @@ namespace Model
 
             const ThetaBetaSnapshot snapshot = [this] {
                 const auto snapshot_tmp = m_loss_queue.front();
-                m_loss_queue.pop();
+                {
+                    lock_guard<mutex> lock(m_mutex);
+                    m_loss_queue.pop();
+                }
                 return snapshot_tmp;
             }();
 
@@ -293,8 +296,9 @@ namespace Model
 
     VectorXi PMF::recommend(int user_id, const int N)
     {
-        vector<double> vi_items {};
-        for (auto & it : m_beta) {
+        vector<double> vi_items{};
+        for (auto &it : m_beta)
+        {
             vi_items.push_back(it.first);
         }
 
@@ -308,7 +312,7 @@ namespace Model
 
         VectorXd predictions = predict(usr_data);
         VectorXi item_indices = Utils::argsort(predictions, Order::descend);
-        VectorXi items_rec (items.size()); // all items for the current user(most recommended --> least recommended)
+        VectorXi items_rec(items.size()); // all items for the current user(most recommended --> least recommended)
         for (int i = 0; i < items.size(); i++)
         {
             items_rec[i] = items[item_indices[i]];
@@ -337,7 +341,7 @@ namespace Model
 
             // Get all items with non-negative ratings ("likes") from the current user id
             vector<int> pos_idxs = Utils::nonNegativeIdxs(ratings);
-            VectorXi user_liked (pos_idxs.size());
+            VectorXi user_liked(pos_idxs.size());
             for (int i = 0; i < pos_idxs.size(); i++)
             {
                 user_liked[i] = static_cast<int>(items[pos_idxs[i]]); // item type: int
