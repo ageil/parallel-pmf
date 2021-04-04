@@ -65,8 +65,9 @@ namespace Model
         public:
                 PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta, const vector<int> &users, const vector<int> &items);
                 ~PMF();
-                vector<double> fit(const int epochs, const double gamma, const int batch_size);
+                vector<double> fit(const int epochs, const double gamma, const int n_threads);
                 vector<double> fit_sequential(const int epochs, const double gamma);
+                vector<double> fit_parallel(const int epochs, const double gamma, const int n_threads);
 
                 VectorXd predict(const MatrixXd &data);
                 VectorXi recommend(int user_id, int N = 10);

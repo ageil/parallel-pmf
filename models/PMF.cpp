@@ -23,11 +23,10 @@ namespace Model
              const vector<int> &items)
         : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(users), m_items(items)
     {
-        cout
-            << "Initializing PMF with `data` size " << m_data->rows()
-            << " x " << m_data->cols() << " with k=" << k
-            << " std_beta=" << std_beta << " std_theta=" << std_theta
-            << endl;
+        cout << "Initializing PMF with `data` size " << m_data->rows()
+             << " x " << m_data->cols() << " with k=" << k
+             << " std_beta=" << std_beta << " std_theta=" << std_theta
+             << endl;
 
         normal_distribution<double> dist_beta(0, std_beta);
         normal_distribution<double> dist_theta(0, std_theta);
@@ -226,13 +225,36 @@ namespace Model
         }
     }
 
-    vector<double> PMF::fit(const int epochs, const double gamma, const int batch_size)
+    vector<double> PMF::fit_sequential(const int epochs, const double gamma)
     {
-        cout << epochs << " epochs \n"
-             << "batch size: " << batch_size << endl;
+        cout << "Using 1 thread (sequential)" << endl << endl;
 
+        for (int epoch = 1; epoch <= epochs; epoch++)
+        {
+            if (epoch % 10 == 0)
+            {
+                //run loss
+                compute_loss(m_theta, m_beta);
+                cout << "epoch: " << epoch << endl;
+            }
+
+            fitUsers(*m_data, gamma);
+            fitItems(*m_data, gamma);
+
+        } // epochs
+
+        return m_losses;
+    }
+
+    vector<double> PMF::fit_parallel(const int epochs, const double gamma, const int n_threads)
+    {
         const int max_rows = m_data->rows();
+        int batch_size = max_rows / (n_threads - 1); // (n-1) threads for params. update, 1 thread for loss calculation
         const int num_batches = max_rows / batch_size;
+
+        cout << "Using " << n_threads << " threads" << endl
+             << "Total epochs: " << epochs << endl
+             << "batch size: " << batch_size << endl << endl;
 
         Utils::guarded_thread compute_loss_thread([this] {
             this->compute_loss_from_queue();
@@ -282,23 +304,9 @@ namespace Model
         return m_losses;
     }
 
-    vector<double> PMF::fit_sequential(const int epochs, const double gamma)
+    vector<double> PMF::fit(const int epochs, const double gamma, const int n_threads)
     {
-        for (int epoch = 1; epoch <= epochs; epoch++)
-        {
-            if (epoch % 10 == 0)
-            {
-                //run loss
-                compute_loss(m_theta, m_beta);
-                cout << "epoch: " << epoch << endl;
-            }
-
-            fitUsers(*m_data, gamma);
-            fitItems(*m_data, gamma);
-
-        } // epochs
-
-        return m_losses;
+        return (n_threads == 1) ? fit_sequential(epochs, gamma) : fit_parallel(epochs, gamma, n_threads);
     }
 
     // Predict ratings using learnt theta and beta vectors in model

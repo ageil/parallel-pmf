@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <chrono>
 #include <random>
@@ -27,7 +28,7 @@ int main(int argc, char **argv)
     int n_epochs = 200;  // default # of iterations
     double gamma = 0.01; // default learning rate for gradient descent
     double ratio = 0.7; // train-test split ratio
-    int batch_size = 2000;
+    int n_threads = 2;
 
     double std_theta = 1.0;
     double std_beta = 1.0;
@@ -40,7 +41,7 @@ int main(int argc, char **argv)
         ("n_components,k", po::value<int>(&k), "Number of components (k)\n [default: 3]")
         ("n_epochs,n", po::value<int>(&n_epochs), "Num. of learning iterations\n  [default: 200]")
         ("ratio,r", po::value<double>(&ratio), "Ratio for training/test set splitting\n [default: 0.7]")
-        ("batch_size,b", po::value<int>(&batch_size), "Number of batch size for parallelization")
+        ("thread", po::value<int>(&n_threads), "Number of threads for parallelization")
         ("gamma", po::value<double>(&gamma), "learning rate for gradient descent\n  [default: 2000]")
         ("std_theta", po::value<double>(&std_theta), "Std. of theta's prior normal distribution\n  [default: 1]")
         ("std_beta", po::value<double>(&std_beta), "Std. of beta's prior normal distribution\n  [default: 1]");
@@ -76,8 +77,8 @@ int main(int argc, char **argv)
 
     // (2). Fit the model to the training data
     auto t0 = chrono::steady_clock::now();
-    Model::PMF model{dm.getTrain(), k, std_beta, std_theta, dm.users, dm.items};
-    vector<double> losses = model.fit(n_epochs, gamma, batch_size);
+    Model::PMF model{ratings_train, k, std_beta, std_theta, dm.users, dm.items};
+    vector<double> losses = model.fit(n_epochs, gamma, n_threads);
     auto t1 = chrono::steady_clock::now();
     double delta_t = std::chrono::duration<double, std::milli> (t1 - t0).count() * 0.001;
     cout << "Running time for " << n_epochs << " iterations: " << delta_t << " s." << endl;
@@ -91,18 +92,29 @@ int main(int argc, char **argv)
     double baseline_zero = Utils::rmse(actual, 0.0);
     double baseline_avg = Utils::rmse(actual, actual.mean());
 
-    // precision & recall of the top N items recommended for each user
-    int N = 500;
-    Metrics acc = model.accuracy(ratings_train, N);
-
     cout << "RMSE(0): " << baseline_zero << endl;
     cout << "RMSE(mean): " << baseline_avg << endl;
     cout << "RMSE(pred): " << error << endl;
+
+    // precision & recall of the top N items recommended for each user [Not in use]
+    /*
+    int N = 500;
+    Metrics acc = model.accuracy(ratings_train, N);
     cout << "Metrics(pred) for top " << N << " recommended items for each user\n"
          << "Precision: " << acc.precision << " Recall: " << acc.recall << endl;
+     */
 
-    // (4). Output losses & prediction results to outdir,
+    // (4). Recommend top 10 movies for a user
 
+    // load item_id - name map
+
+    int user_id = 1;
+    int n_top_items = 10;
+    VectorXi rec = model.recommend(user_id, n_top_items);
+    cout << "\nTop 10 recommended movies for user " << user_id << " :" << endl;
+    cout << rec << endl;
+
+    // (5). Output losses & prediction results to outdir
 
     return 0;
 }
