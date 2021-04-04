@@ -1,19 +1,17 @@
-#include "utils.h"
-#include "PMF.h"
-#include "ratingsdata.h"
 #include <cmath>
-#include <numeric>
+#include <vector>
 #include <set>
-#include <iostream>
+
+#include "utils.h"
 
 #include <gsl/gsl_assert>
 
 namespace Utils
 {
 
-    vector<double> positiveIdxs(const VectorXd &x)
+    vector<int> nonNegativeIdxs(const VectorXd &x)
     {
-        vector<double> indices {};
+        vector<int> indices {};
         for (int i = 0; i < x.size(); i++)
         {
             if (x[i] >= 0)
@@ -25,17 +23,51 @@ namespace Utils
         return indices;
     }
 
-    int countJointIdxs(const VectorXd &x, const VectorXd &y)
+    int countIntersect(const VectorXi &x, const VectorXi &y)
     {
-        vector<double> vi_x(x.size());
-        vector<double> vi_y(y.size());
-        VectorXd::Map(vi_x.data(), x.size()) = x;
-        VectorXd::Map(vi_y.data(), y.size()) = y;
+        vector<int> vi_x(x.size());
+        vector<int> vi_y(y.size());
+        VectorXi::Map(vi_x.data(), x.size()) = x;
+        VectorXi::Map(vi_y.data(), y.size()) = y;
 
-        vector<double> intersect {};
+        vector<int> intersect {};
         set_intersection(vi_x.begin(), vi_x.end(), vi_y.begin(), vi_y.end(), back_inserter(intersect));
 
         return intersect.size();
+    }
+
+    VectorXi argsort(const VectorXd &x, const Order option)
+    {
+        Expects(option == Order::ascend or option == Order::descend);
+
+        vector<double> vi (x.size());
+        VectorXd::Map(vi.data(), x.size()) = x;
+
+        vector<int> indices (x.size());
+        int idx = 0;
+        std::generate(indices.begin(), indices.end(), [&] { return idx++; });
+
+        if (option == Order::ascend)
+        {
+            std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] < vi[b]; });
+        }
+        else
+        {
+            std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] > vi[b]; });
+        }
+
+        Eigen::Map<VectorXi> indices_sorted(indices.data(), indices.size());
+
+        return indices_sorted;
+    }
+
+    vector<int> getUnique(const shared_ptr<MatrixXd> &mat, int col_idx)
+    {
+        const MatrixXd &col = mat->col(col_idx);
+        set<int> unique_set{col.data(), col.data() + col.size()};
+        vector<int> unique(unique_set.begin(), unique_set.end());
+
+        return unique;
     }
 
     double rmse(const VectorXd &y, const double y_hat)
@@ -64,51 +96,11 @@ namespace Utils
 
     double r2(const VectorXd &y, const VectorXd &y_hat)
     {
+        VectorXd y_mean(y.size());
+        y_mean.setConstant(y.mean());
         double SSE = (y - y_hat).array().square().sum();
-        double TSS = (y - y.rowwise().mean()).sum();
-
+        double TSS = (y - y_mean).array().square().sum();
         return 1 - (SSE / TSS);
     }
-
-    tuple<double, double> topN(Model::PMF &pmfModel, const shared_ptr<MatrixXd> &data, const int N)
-    {
-        tuple<double, double> tmp;
-        vector<int> likes {};
-        vector<int> hits {};
-
-        for (int idx = 0; idx < data->rows(); idx++)
-        {
-            int user_id = (*data)(idx, 0);
-            MatrixXd user_data = pmfModel.subsetByID(*data, user_id, 0);
-            VectorXd ratings = user_data.col(2);
-            VectorXd items = user_data.col(1);
-
-            // Get all items with positive ratings from the current user id
-            vector<double> pos_idxs = positiveIdxs(ratings);
-            VectorXd user_liked (pos_idxs.size());
-            for (int i = 0; i < pos_idxs.size(); i++) {
-                user_liked[i] = items[pos_idxs[i]];
-            }
-
-            // Get top N recommendations for the current user_id
-            VectorXd rec = pmfModel.recommend(user_id);
-            VectorXd top_rec = rec.topRows(N);
-
-            // Get overlap between recommendation & ground-truth "liked"
-            int num_liked = pos_idxs.size();
-            int num_hits = countJointIdxs(top_rec, user_liked);
-            likes.push_back(num_liked);
-            hits.push_back(num_hits);
-        }
-
-        int n_total_hits = accumulate(hits.begin(), hits.end(), 0);
-        int n_total_likes = accumulate(likes.begin(), likes.end(), 0);
-        double precision = n_total_hits / (N * data->rows());
-        double recall = n_total_hits / n_total_likes;
-
-        return {precision, recall};
-    }
-
-
 
 } // namespace Utils

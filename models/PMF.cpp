@@ -12,6 +12,7 @@
 
 namespace Model
 {
+    using namespace Utils;
     using namespace RatingsData;
 
     PMF::PMF(const shared_ptr<MatrixXd> &data,
@@ -20,19 +21,19 @@ namespace Model
              const double std_theta,
              const vector<int> &users,
              const vector<int> &items)
-        : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(users), m_items(items)
+            : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(users), m_items(items)
     {
         cout
-            << "Initializing PMF with `data` size " << m_data->rows()
-            << " x " << m_data->cols() << " with k=" << k
-            << " std_beta=" << std_beta << " std_theta=" << std_theta
-            << endl;
+                << "Initializing PMF with `data` size " << m_data->rows()
+                << " x " << m_data->cols() << " with k=" << k
+                << " std_beta=" << std_beta << " std_theta=" << std_theta
+                << endl;
 
         normal_distribution<double> dist_beta(0, std_beta);
         normal_distribution<double> dist_theta(0, std_theta);
 
         initVectors(dist_theta, m_users, m_theta);
-        cout << "Initialized " << m_theta.size() << " users ibtheta map \n";
+        cout << "Initialized " << m_theta.size() << " users in theta map \n";
 
         initVectors(dist_beta, m_items, m_beta);
         cout << "Initialized " << m_beta.size() << " items in beta map \n";
@@ -78,33 +79,6 @@ namespace Model
         return log_prob;
     }
 
-    // Return the indices that would sort the input input vector
-    // Reference: https://stackoverflow.com/questions/25921706/creating-a-vector-of-indices-of-a-sorted-vector
-    VectorXd PMF::argsort(const VectorXd &x, const string &option)
-    {
-        Expects(option == "ascent" or option == "descent");
-
-        vector<double> vi (x.size());
-        VectorXd::Map(vi.data(), x.size()) = x;
-
-        vector<double> indices (x.size());
-        int idx = 0;
-        std::generate(indices.begin(), indices.end(), [&] { return idx++; });
-
-        if (option == "ascent")
-        {
-            std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] < vi[b]; });
-        }
-        else
-        {
-            std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] > vi[b]; });
-        }
-
-        Eigen::Map<VectorXd> indices_sorted(indices.data(), indices.size());
-
-        return indices_sorted ;
-    }
-
     // Calculate the log probability of the data under the current model
     void PMF::loss()
     {
@@ -112,13 +86,25 @@ namespace Model
 
         while (m_fit_in_progress || !m_loss_queue.empty())
         {
-            std::unique_lock<std::mutex> lock(m_mutex);
-            m_cv.wait(lock, [this] { return !m_loss_queue.empty(); });
+            {
+                std::unique_lock<std::mutex> lock(m_mutex);
+                m_cv.wait(lock, [this] {
+                    return !(m_fit_in_progress && m_loss_queue.empty());
+                });
+            }
 
-            const ThetaBetaSnapshot snapshot = m_loss_queue.front();
-            m_loss_queue.pop();
+            if (!m_fit_in_progress && m_loss_queue.empty())
+            {
+                return;
+            }
 
-            lock.unlock();
+            Expects(!m_loss_queue.empty());
+
+            const ThetaBetaSnapshot snapshot = [this] {
+                const auto snapshot_tmp = m_loss_queue.front();
+                m_loss_queue.pop();
+                return snapshot_tmp;
+            }();
 
             const auto theta_snapshot = snapshot.theta;
             const auto beta_snapshot = snapshot.beta;
@@ -154,14 +140,14 @@ namespace Model
     // Subset m_data by rows where values in column is equal to ID
     MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column)
     {
-        VectorXi isID = (batch.col(column).array() == ID).cast<int>(); // which rows have ID in col?
-        int num_rows = isID.sum();
+        VectorXi is_id = (batch.col(column).array() == ID).cast<int>(); // which rows have ID in col?
+        int num_rows = is_id.sum();
         int num_cols = batch.cols();
         MatrixXd submatrix(num_rows, num_cols);
         int cur_row = 0;
         for (int i = 0; i < batch.rows(); ++i)
         {
-            if (isID[i])
+            if (is_id[i])
             {
                 submatrix.row(cur_row) = batch.row(i);
                 cur_row++;
@@ -176,27 +162,27 @@ namespace Model
         MatrixXd users = batch.col(col_value(Cols::user));
         set<int> unique_users = {users.data(), users.data() + users.size()};
 
-        for (auto &usrID : unique_users)
+        for (auto &usr_id : unique_users)
         {
             // extract sub-matrix of user usrID's in batch
-            const MatrixXd user_data = subsetByID(batch, usrID, col_value(Cols::user));
+            const MatrixXd user_data = subsetByID(batch, usr_id, col_value(Cols::user));
             const VectorXi &items = user_data.col(col_value(Cols::item)).cast<int>();
             const VectorXd &ratings = user_data.col(col_value(Cols::rating));
 
             // compute gradient update of user preference vectors
-            VectorXd grad = -(1.0 / m_std_theta) * m_theta[usrID];
+            VectorXd grad = -(1.0 / m_std_theta) * m_theta[usr_id];
 
             for (int idx = 0; idx < items.size(); idx++)
             {
                 int itmID = items(idx);
                 double rating = ratings(idx);
-                double rating_hat = m_theta[usrID].dot(m_beta[itmID]);
+                double rating_hat = m_theta[usr_id].dot(m_beta[itmID]);
                 grad += (rating - rating_hat) * m_beta[itmID];
             }
 
-            VectorXd update = m_theta[usrID] + learning_rate * grad;
+            VectorXd update = m_theta[usr_id] + learning_rate * grad;
             update.normalize();
-            m_theta[usrID] = update; // note: no lock needed
+            m_theta[usr_id] = update; // note: no lock needed
         }
     }
 
@@ -205,33 +191,33 @@ namespace Model
         MatrixXd items = batch.col(col_value(Cols::item));
         set<int> unique_items = {items.data(), items.data() + items.size()};
 
-        for (auto &itmID : unique_items)
+        for (auto &itm_id : unique_items)
         {
             // extract sub-matrix of item itmID's data
-            const MatrixXd item_data = subsetByID(batch, itmID, col_value(Cols::item));
+            const MatrixXd item_data = subsetByID(batch, itm_id, col_value(Cols::item));
             const VectorXi &users = item_data.col(col_value(Cols::user)).cast<int>();
             const VectorXd &ratings = item_data.col(col_value(Cols::rating));
 
             // compute gradient update of item attribute vectors
-            VectorXd grad = -(1.0 / m_std_beta) * m_beta[itmID];
+            VectorXd grad = -(1.0 / m_std_beta) * m_beta[itm_id];
             for (int idx = 0; idx < users.size(); idx++)
             {
                 int usrID = users(idx);
                 double rating = ratings(idx);
-                double rating_hat = m_theta[usrID].dot(m_beta[itmID]);
+                double rating_hat = m_theta[usrID].dot(m_beta[itm_id]);
                 grad += (rating - rating_hat) * m_theta[usrID];
             }
 
-            VectorXd update = m_beta[itmID] + learning_rate * grad;
+            VectorXd update = m_beta[itm_id] + learning_rate * grad;
             update.normalize();
-            m_beta[itmID] = update; // note: no lock needed
+            m_beta[itm_id] = update; // note: no lock needed
         }
     }
 
-    vector<double> PMF::fit(const int epochs, const double gamma, const int batch_size, const int num_threads)
+    vector<double> PMF::fit(const int epochs, const double gamma, const int batch_size)
     {
         cout << epochs << " epochs \n"
-             << "num_threads: " << num_threads << endl;
+             << "batch size: " << batch_size << endl;
 
         const int max_rows = m_data->rows();
         const int num_batches = max_rows / batch_size;
@@ -277,6 +263,8 @@ namespace Model
         } // epochs
 
         m_fit_in_progress = false;
+        m_cv.notify_one();
+
         return m_losses;
     }
 
@@ -303,7 +291,7 @@ namespace Model
         return predictions;
     }
 
-    VectorXd PMF::recommend(int user_id)
+    VectorXi PMF::recommend(int user_id, const int N)
     {
         vector<double> vi_items {};
         for (auto & it : m_beta) {
@@ -319,15 +307,57 @@ namespace Model
         usr_data.col(1) = items;
 
         VectorXd predictions = predict(usr_data);
-        VectorXd item_indices = argsort(predictions, "descend");
-
-        VectorXd items_rec (items.size()); // all user i items (most recommended --> least recommended)
+        VectorXi item_indices = Utils::argsort(predictions, Order::descend);
+        VectorXi items_rec (items.size()); // all items for the current user(most recommended --> least recommended)
         for (int i = 0; i < items.size(); i++)
         {
             items_rec[i] = items[item_indices[i]];
         }
 
-        return items_rec;
+        // return the top N recommendations for the current user
+        VectorXi top_rec = items_rec.topRows(N);
+
+        return top_rec;
+    }
+
+    // Return the precision & recall of the top N predicted items for each user in the give dataset
+    Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N)
+    {
+        int num_likes_total = 0;
+        int num_hits_total = 0;
+
+        MatrixXd users = (*data).col(col_value(Cols::user));
+        set<int> unique_users = {users.data(), users.data() + users.size()};
+
+        for (auto &user_id : unique_users)
+        {
+            const MatrixXd user_data = subsetByID(*data, user_id, col_value(Cols::user));
+            const VectorXi &items = user_data.col(col_value(Cols::item)).cast<int>();
+            const VectorXd &ratings = user_data.col(col_value(Cols::rating));
+
+            // Get all items with non-negative ratings ("likes") from the current user id
+            vector<int> pos_idxs = Utils::nonNegativeIdxs(ratings);
+            VectorXi user_liked (pos_idxs.size());
+            for (int i = 0; i < pos_idxs.size(); i++)
+            {
+                user_liked[i] = static_cast<int>(items[pos_idxs[i]]); // item type: int
+            }
+
+            // Get top N recommendations for the current user_id
+            VectorXi top_rec = recommend(user_id, N);
+
+            // Get overlap between recommendation & ground-truth "likes"
+            int num_likes = pos_idxs.size();
+            int num_hits = Utils::countIntersect(top_rec, user_liked);
+            num_likes_total += num_likes;
+            num_hits_total += num_hits;
+        }
+
+        Metrics acc{};
+        acc.precision = num_hits_total / (N * data->rows());
+        acc.recall = num_hits_total / num_likes_total;
+
+        return acc;
     }
 
 } // namespace Model

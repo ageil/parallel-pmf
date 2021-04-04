@@ -5,49 +5,52 @@
 #include <thread>
 #include <Eigen/Dense>
 
-namespace Model
-{
-    class PMF; // Forward declare
-}
-
-namespace Utils
-{
+namespace Utils {
     using namespace std;
     using namespace Eigen;
-    using namespace Model;
 
-    // Heler functions
-    vector<double> positiveIdxs(const VectorXd &x);
+    // Specify argsort option: ascend or descend
+    enum class Order
+    {
+        ascend = 0,
+        descend = 1
+    };
 
-    int countJointIdxs(const VectorXd &x, const VectorXd &y);
+    // Get all vector indices with non-negative values
+    vector<int> nonNegativeIdxs(const VectorXd &x);
 
-    // Get root mean squared error. Returns VectorXd of the same shape as
-    // y_hat.
-    double rmse(const VectorXd &y, const double y_hat);
+    // Count the total number of intersect elements between two vectors
+    int countIntersect(const VectorXi &x, const VectorXi &y);
+
+    // Get unique int ID values for column col_idx in matrix
+    vector<int> getUnique(const shared_ptr<MatrixXd> &mat, int col_idx);
+
+    // Return the indices that would sort the input vector
+    // Reference: https://stackoverflow.com/questions/25921706/creating-a-vector-of-indices-of-a-sorted-vector
+    VectorXi argsort(const VectorXd &x, Order option);
+
+    // Get root mean squared error between ground-truth (y) and a constant prediction (y_hat)
+    double rmse(const VectorXd &y, double y_hat);
+
+    // Get root mean squared error between ground-truth (y) and predictions (y_hat)
     double rmse(const VectorXd &y, const VectorXd &y_hat);
 
-    // TODO: need docs for r2
+    // Get coefficient of determination between ground-truth (y) and predictions (y_hat)
     double r2(const VectorXd &y, const VectorXd &y_hat);
 
-    // TODO: need docs for topN. Returns pair of <precision, recall>
-    tuple<double, double> topN(PMF &pmfModel, const shared_ptr<MatrixXd> &data, const int N = 10);
-
-    struct guarded_thread : std::thread
-    {
+    struct guarded_thread : std::thread {
         using std::thread::thread;
 
         guarded_thread(const guarded_thread &) = delete;
 
         guarded_thread(guarded_thread &&) = default;
 
-        ~guarded_thread()
-        {
+        ~guarded_thread() {
             if (joinable())
                 join();
         }
     };
 
 } //namepsace Utils
-
 
 #endif
