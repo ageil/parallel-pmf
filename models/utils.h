@@ -5,12 +5,17 @@
 #include <thread>
 #include <utility>
 
-namespace Utils {
+namespace Utils
+{
 using namespace std;
 using namespace Eigen;
 
 // Specify argsort option: ascend or descend
-enum class Order { ascend = 0, descend = 1 };
+enum class Order
+{
+    ascend = 0,
+    descend = 1
+};
 
 // Get all vector indices with non-negative values
 vector<int> nonNegativeIdxs(const VectorXd &x);
@@ -37,17 +42,19 @@ double rmse(const VectorXd &y, const VectorXd &y_hat);
 // (y_hat)
 double r2(const VectorXd &y, const VectorXd &y_hat);
 
-struct guarded_thread : std::thread {
-  using std::thread::thread;
+struct guarded_thread : std::thread
+{
+    using std::thread::thread;
 
-  guarded_thread(const guarded_thread &) = delete;
+    guarded_thread(const guarded_thread &) = delete;
 
-  guarded_thread(guarded_thread &&) = default;
+    guarded_thread(guarded_thread &&) = default;
 
-  ~guarded_thread() {
-    if (joinable())
-      join();
-  }
+    ~guarded_thread()
+    {
+        if (joinable())
+            join();
+    }
 };
 
 } // namespace Utils
