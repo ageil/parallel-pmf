@@ -61,13 +61,9 @@ namespace Utils
             sum += i;
         }
         double mid = sum / unique_vals.size();
-        cout << "mid: " << mid << endl;
         for (int i = 0; i < m_data->rows(); i++)
         {
             (*m_data)(i, 2) -= mid;
-            if (i < 30) {
-                cout << (*m_data)(i, 2) << endl;
-            }
         }
     }
 
