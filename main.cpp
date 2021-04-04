@@ -105,9 +105,6 @@ int main(int argc, char **argv)
      */
 
     // (4). Recommend top 10 movies for a user
-
-    // load item_id - name map
-
     int user_id = 1;
     int n_top_items = 10;
     VectorXi rec = model.recommend(user_id, n_top_items);
