@@ -80,13 +80,46 @@ namespace Model
     }
 
     // Calculate the log probability of the data under the current model
-    void PMF::loss()
+    void PMF::compute_loss(const map<int, VectorXd> &theta, const map<int, VectorXd> &beta)
+    {
+        double loss = 0;
+
+        for (const auto user_id : m_users)
+        {
+            loss += logNormPDF(theta.at(user_id));
+        }
+
+        for (const auto item_id : m_items)
+        {
+            loss += logNormPDF(beta.at(item_id));
+        }
+
+        for (int idx = 0; idx < m_data->rows(); idx++)
+        {
+            int i = (*m_data)(idx, 0);
+            int j = (*m_data)(idx, 1);
+
+            double r = (*m_data)(idx, 2);
+            double r_hat = theta.at(i).dot(beta.at(j));
+
+            loss += logNormPDF(r, r_hat);
+        }
+
+        m_losses.push_back(loss);
+        cout << "loss: " << loss << endl;
+    }
+
+    // Computes loss from the theta and beta snapshots found in the
+    // m_loss_queue queue.
+    void PMF::compute_loss_from_queue()
     {
         m_fit_in_progress = true;
 
         while (m_fit_in_progress || !m_loss_queue.empty())
         {
             {
+                // Waits for the signal that there are items on the m_loss_queue
+                // to process or the signal to terminate the thread.
                 std::unique_lock<std::mutex> lock(m_mutex);
                 m_cv.wait(lock, [this] {
                     return !(m_fit_in_progress && m_loss_queue.empty());
@@ -112,31 +145,7 @@ namespace Model
             const auto theta_snapshot = snapshot.theta;
             const auto beta_snapshot = snapshot.beta;
 
-            double loss = 0;
-
-            for (const auto user_id : m_users)
-            {
-                loss += logNormPDF(theta_snapshot.at(user_id));
-            }
-
-            for (const auto item_id : m_items)
-            {
-                loss += logNormPDF(beta_snapshot.at(item_id));
-            }
-
-            for (int idx = 0; idx < m_data->rows(); idx++)
-            {
-                int i = (*m_data)(idx, 0);
-                int j = (*m_data)(idx, 1);
-
-                double r = (*m_data)(idx, 2);
-                double r_hat = theta_snapshot.at(i).dot(beta_snapshot.at(j));
-
-                loss += logNormPDF(r, r_hat);
-            }
-
-            m_losses.push_back(loss);
-            cout << "loss: " << loss << endl;
+            compute_loss(theta_snapshot, beta_snapshot);
         }
     }
 
@@ -225,7 +234,9 @@ namespace Model
         const int max_rows = m_data->rows();
         const int num_batches = max_rows / batch_size;
 
-        Utils::guarded_thread compute_loss([this] { this->loss(); });
+        Utils::guarded_thread compute_loss_thread([this] {
+            this->compute_loss_from_queue();
+        });
 
         for (int epoch = 1; epoch <= epochs; epoch++)
         {
@@ -267,6 +278,25 @@ namespace Model
 
         m_fit_in_progress = false;
         m_cv.notify_one();
+
+        return m_losses;
+    }
+
+    vector<double> PMF::fit_sequential(const int epochs, const double gamma)
+    {
+        for (int epoch = 1; epoch <= epochs; epoch++)
+        {
+            if (epoch % 10 == 0)
+            {
+                //run loss
+                compute_loss(m_theta, m_beta);
+                cout << "epoch: " << epoch << endl;
+            }
+
+            fitUsers(*m_data, gamma);
+            fitItems(*m_data, gamma);
+
+        } // epochs
 
         return m_losses;
     }
