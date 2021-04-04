@@ -29,8 +29,8 @@ namespace Model
 
         struct Metrics
         {
-            double precision;
-            double recall;
+                double precision;
+                double recall;
         };
 
         class PMF
@@ -40,7 +40,8 @@ namespace Model
                 double logNormPDF(const VectorXd &x, double loc = 0.0, double scale = 1.0);
                 double logNormPDF(double x, double loc = 0.0, double scale = 1.0);
                 MatrixXd subsetByID(const Ref<MatrixXd> &batch, int ID, int column);
-                void loss();
+                void compute_loss(const map<int, VectorXd> &theta, const map<int, VectorXd> &beta);
+                void compute_loss_from_queue();
 
                 void fitUsers(const Ref<MatrixXd> &batch, const double learning_rate);
                 void fitItems(const Ref<MatrixXd> &batch, const double learning_rate);
@@ -65,8 +66,10 @@ namespace Model
                 PMF(const shared_ptr<MatrixXd> &d, const int k, const double eta_beta, const double eta_theta, const vector<int> &users, const vector<int> &items);
                 ~PMF();
                 vector<double> fit(const int epochs, const double gamma, const int batch_size);
+                vector<double> fit_sequential(const int epochs, const double gamma);
+
                 VectorXd predict(const MatrixXd &data);
-                VectorXi recommend(int user_id, int N=10);
+                VectorXi recommend(int user_id, int N = 10);
                 Metrics accuracy(const shared_ptr<MatrixXd> &data, const int N);
         };
 } //namespace Model
