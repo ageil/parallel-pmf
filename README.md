@@ -6,6 +6,12 @@ cmake .
 make
 ```
 
+To compile & run the unit tests:<br>
+```bash
+cmake .
+make test
+```
+
 Prerequisite libraries
 * boost
 * [Eigen3](https://eigen.tuxfamily.org/index.php?title=Main_Page)
