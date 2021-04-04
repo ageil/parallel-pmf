@@ -39,3 +39,6 @@ CMakeCache.txt
 CmakeFiles
 cmake_install.cmake
 Makefile
+*.cmake
+Testing
+_deps

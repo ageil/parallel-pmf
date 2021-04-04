@@ -1,106 +1,96 @@
 #include <cmath>
-#include <vector>
 #include <set>
+#include <vector>
 
 #include "utils.h"
 
 #include <gsl/gsl_assert>
 
-namespace Utils
-{
+namespace Utils {
 
-    vector<int> nonNegativeIdxs(const VectorXd &x)
-    {
-        vector<int> indices {};
-        for (int i = 0; i < x.size(); i++)
-        {
-            if (x[i] >= 0)
-            {
-                indices.push_back(i);
-            }
-        }
-
-        return indices;
+vector<int> nonNegativeIdxs(const VectorXd &x) {
+  vector<int> indices{};
+  for (int i = 0; i < x.size(); i++) {
+    if (x[i] >= 0) {
+      indices.push_back(i);
     }
+  }
 
-    int countIntersect(const VectorXi &x, const VectorXi &y)
-    {
-        vector<int> vi_x(x.size());
-        vector<int> vi_y(y.size());
-        VectorXi::Map(vi_x.data(), x.size()) = x;
-        VectorXi::Map(vi_y.data(), y.size()) = y;
+  return indices;
+}
 
-        vector<int> intersect {};
-        set_intersection(vi_x.begin(), vi_x.end(), vi_y.begin(), vi_y.end(), back_inserter(intersect));
+int countIntersect(const VectorXi &x, const VectorXi &y) {
+  vector<int> vi_x(x.size());
+  vector<int> vi_y(y.size());
+  VectorXi::Map(vi_x.data(), x.size()) = x;
+  VectorXi::Map(vi_y.data(), y.size()) = y;
 
-        return intersect.size();
-    }
+  vector<int> intersect{};
+  set_intersection(vi_x.begin(), vi_x.end(), vi_y.begin(), vi_y.end(),
+                   back_inserter(intersect));
 
-    VectorXi argsort(const VectorXd &x, const Order option)
-    {
-        Expects(option == Order::ascend or option == Order::descend);
+  return intersect.size();
+}
 
-        vector<double> vi (x.size());
-        VectorXd::Map(vi.data(), x.size()) = x;
+VectorXi argsort(const VectorXd &x, const Order option) {
+  Expects(option == Order::ascend or option == Order::descend);
 
-        vector<int> indices (x.size());
-        int idx = 0;
-        std::generate(indices.begin(), indices.end(), [&] { return idx++; });
+  vector<double> vi(x.size());
+  VectorXd::Map(vi.data(), x.size()) = x;
 
-        if (option == Order::ascend)
-        {
-            std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] < vi[b]; });
-        }
-        else
-        {
-            std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] > vi[b]; });
-        }
+  vector<int> indices(x.size());
+  int idx = 0;
+  std::generate(indices.begin(), indices.end(), [&] { return idx++; });
 
-        Eigen::Map<VectorXi> indices_sorted(indices.data(), indices.size());
+  if (option == Order::ascend) {
+    std::sort(indices.begin(), indices.end(),
+              [&](int a, int b) { return vi[a] < vi[b]; });
+  } else {
+    std::sort(indices.begin(), indices.end(),
+              [&](int a, int b) { return vi[a] > vi[b]; });
+  }
 
-        return indices_sorted;
-    }
+  Eigen::Map<VectorXi> indices_sorted(indices.data(), indices.size());
 
-    vector<int> getUnique(const shared_ptr<MatrixXd> &mat, int col_idx)
-    {
-        const MatrixXd &col = mat->col(col_idx);
-        set<int> unique_set{col.data(), col.data() + col.size()};
-        vector<int> unique(unique_set.begin(), unique_set.end());
+  return indices_sorted;
+}
 
-        return unique;
-    }
+vector<int> getUnique(const shared_ptr<MatrixXd> &mat, int col_idx) {
+  const MatrixXd &col = mat->col(col_idx);
+  set<int> unique_set{col.data(), col.data() + col.size()};
+  vector<int> unique(unique_set.begin(), unique_set.end());
 
-    double rmse(const VectorXd &y, const double y_hat)
-    {
-        const auto denominator = y.size();
-        Expects(denominator > 0);
+  return unique;
+}
 
-        const double c = 1 / (double)denominator;
-        const VectorXd &squared = (y.array() - y_hat).square();
-        const double &summed = squared.sum();
+double rmse(const VectorXd &y, const double y_hat) {
+  const auto denominator = y.size();
+  Expects(denominator > 0);
 
-        return sqrt(c * summed);
-    }
+  const double c = 1 / (double)denominator;
+  const VectorXd &squared = (y.array() - y_hat).square();
+  const double &summed = squared.sum();
 
-    double rmse(const VectorXd &y, const VectorXd &y_hat)
-    {
-        Expects(y.size() > 0);
-        Expects(y.size() == y_hat.size());
+  return sqrt(c * summed);
+}
 
-        const VectorXd &err = y - y_hat;
-        const VectorXd &sq_err = err.array().square();
-        const double &ms_error = sq_err.sum() / y.size();
+double rmse(const VectorXd &y, const VectorXd &y_hat) {
+  Expects(y.size() > 0);
+  Expects(y.size() == y_hat.size());
 
-        return sqrt(ms_error);
-    }
+  const VectorXd &err = y - y_hat;
+  const VectorXd &sq_err = err.array().square();
+  const double &ms_error = sq_err.sum() / y.size();
 
-    double r2(const VectorXd &y, const VectorXd &y_hat)
-    {
-        VectorXd y_mean(y.size());
-        y_mean.setConstant(y.mean());
-        double SSE = (y - y_hat).array().square().sum();
-        double TSS = (y - y_mean).array().square().sum();
-        return 1 - (SSE / TSS);
-    }
+  return sqrt(ms_error);
+}
+
+double r2(const VectorXd &y, const VectorXd &y_hat) {
+  VectorXd y_mean(y.size());
+  y_mean.setConstant(y.mean());
+  double SSE = (y - y_hat).array().square().sum();
+  double TSS = (y - y_mean).array().square().sum();
+  return 1 - (SSE / TSS);
+}
 
 } // namespace Utils
