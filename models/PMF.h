@@ -27,6 +27,12 @@ namespace Model
 using namespace std;
 using namespace Eigen;
 
+/**
+ * Stores a 'snapshot' of the given theta and beta inputs by copying the inputs and storeing them in theta and beta
+ * member variables.
+ * @param theta A map connecting each entity ID to its corresponding latent vector.
+ * @param beta A map connecting each entity ID to its corresponding latent vector.
+ */
 struct ThetaBetaSnapshot
 {
     ThetaBetaSnapshot(const map<int, VectorXd> theta, const map<int, VectorXd> beta)

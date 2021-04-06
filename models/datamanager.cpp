@@ -16,7 +16,10 @@ using namespace std;
 namespace
 {
 
-// Centralize data matrix to mean = median ratings
+/**
+ *  Centralizes the given data matrix to mean = median ratings
+ * @param data The matrix to centralize.
+ */
 void centralize(MatrixXd &data)
 {
     set<double> unique_vals{data.col(2).data(), data.col(2).data() + data.col(2).size()};
@@ -101,6 +104,13 @@ MatrixXd load(const string &input_filepath)
 
 } // namespace
 
+/**
+ * Initialize DataManager by loading the csv file found in the given input. The data is centralized, shuffled, and
+ * stored. Additionally, the given ratio will determine how to split the processed data into training data vs. testing
+ * data. (e.g. ratio=0.7 will split to 70% train, 30% test)
+ * @param input A file path to the csv file of data to load.
+ * @param ratio The ratio to split the data into training data vs. testing data.
+ */
 DataManager::DataManager(const string &input, const double ratio)
     : m_data(make_shared<MatrixXd>(load(input)))
 
@@ -112,6 +122,12 @@ DataManager::DataManager(const string &input, const double ratio)
     items = Utils::getUnique(m_data, 1);
 }
 
+/**
+ * Splits m_data by the given ratio (e.g. ratio=0.7 will split to 70% train, 30% test)
+ * @param ratio The ratio to split the data into training data vs. testing data.
+ * @return A tuple of <MatrixXd, MatrixXd> type, in which the first matrix if the training data and the second matrix is
+ * the testing data.
+ */
 tuple<TrainingData, TestingData> DataManager::split(const double ratio)
 {
     const int idx = static_cast<int>(m_data->rows() * ratio);
@@ -120,11 +136,19 @@ tuple<TrainingData, TestingData> DataManager::split(const double ratio)
             make_shared<MatrixXd>(m_data->bottomRows(m_data->rows() - idx))};
 }
 
+/**
+ * Gets the training data set.
+ * @return A shared_ptr of the matrix of the training data set.
+ */
 shared_ptr<MatrixXd> DataManager::getTrain() const
 {
     return m_data_train;
 }
 
+/**
+ * Gets the testing data set.
+ * @return A shared_ptr of the matrix of the testing data set.
+ */
 shared_ptr<MatrixXd> DataManager::getTest() const
 {
     return m_data_test;

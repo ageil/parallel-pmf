@@ -158,9 +158,13 @@ void PMF::computeLoss(const map<int, VectorXd> &theta, const map<int, VectorXd> 
     cout << "[computeLoss] Loss: " << loss << endl;
 }
 
+/**
+ * Compute the log-likelihood of the snapshots of data found in m_loss_queue (assuming only Gaussian distributions).
+ * This queue will wait until it gets a signal that there is a new item to process or until it gets a signal to
+ * terminate. If it gets the signal to terminate, it will process any remaining items in the queue before exiting.
+ */
 void PMF::computeLossFromQueue()
 {
-    cout << "[computeLossFromQueue] Loss computation thread started.\n";
     m_fit_in_progress = true;
 
     while (m_fit_in_progress || !m_loss_queue.empty())
@@ -193,8 +197,6 @@ void PMF::computeLossFromQueue()
 
         computeLoss(theta_snapshot, beta_snapshot);
     }
-
-    cout << "[computeLossFromQueue] Loss computation thread completed.\n\n";
 }
 
 /**
@@ -265,7 +267,8 @@ void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
 }
 
 /**
- * Fit the latent beta and theta vectors to the training dataset sequentially.
+ * Fit the latent beta and theta vectors to the training dataset sequentially. This performs the loss computation every
+ * 10 epochs sequentially.
  * @param epochs Number of times the training dataset is passed over in order to compute gradient updates
  * @param gamma Learning rate to be used in the gradient ascent procedure
  * @return A vector of log-likelihoods of the data under the model for each epoch
@@ -291,7 +294,8 @@ vector<double> PMF::fitSequential(const int epochs, const double gamma)
 }
 
 /**
- * Fit the latent beta and theta vectors to the training dataset in parallel over multiple threads.
+ * Fit the latent beta and theta vectors to the training dataset in parallel over multiple threads.This performs the
+ * loss computation every 10 epochs in parallel on a separate thread.
  * @param epochs Number of times the training dataset is passed over in order to compute gradient updates
  * @param gamma Learning rate to be used in the gradient ascent procedure
  * @param n_threads Number of threads the training dataset to distribute the dataset over
@@ -310,7 +314,11 @@ vector<double> PMF::fitParallel(const int epochs, const double gamma, const int 
          << "[fitParallel] num batches: " << num_batches << endl
          << endl;
 
-    Utils::guarded_thread compute_loss_thread([this] { this->computeLossFromQueue(); });
+    Utils::guarded_thread compute_loss_thread([this] {
+        cout << "[computeLossThread] Loss computation thread started.\n";
+        this->computeLossFromQueue();
+        cout << "[computeLossThread] Loss computation thread completed.\n\n";
+    });
 
     for (int epoch = 1; epoch <= epochs; epoch++)
     {
