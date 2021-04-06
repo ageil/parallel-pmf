@@ -15,15 +15,12 @@ namespace Model
 using namespace Utils;
 using namespace RatingsData;
 
-PMF::PMF(const shared_ptr<MatrixXd> &data, const int k, const double std_beta,
-         const double std_theta, const vector<int> &users,
-         const vector<int> &items)
-    : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta),
-      m_users(users), m_items(items)
+PMF::PMF(const shared_ptr<MatrixXd> &data, const int k, const double std_beta, const double std_theta,
+         const vector<int> &users, const vector<int> &items)
+    : m_data(data), m_k(k), m_std_beta(std_beta), m_std_theta(std_theta), m_users(users), m_items(items)
 {
-    cout << "Initializing PMF with `data` size " << m_data->rows() << " x "
-         << m_data->cols() << " with k=" << k << " std_beta=" << std_beta
-         << " std_theta=" << std_theta << endl;
+    cout << "Initializing PMF with `data` size " << m_data->rows() << " x " << m_data->cols() << " with k=" << k
+         << " std_beta=" << std_beta << " std_theta=" << std_theta << endl;
 
     normal_distribution<double> dist_beta(0, std_beta);
     normal_distribution<double> dist_theta(0, std_theta);
@@ -42,8 +39,7 @@ PMF::~PMF()
 
 // Initializes map vmap for each entity with random vector of size m_k
 // sampling from distribution dist
-void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities,
-                      map<int, VectorXd> &vmap)
+void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities, map<int, VectorXd> &vmap)
 {
     auto rand = [&]() { return dist(d_generator); };
     for (int elem : entities)
@@ -76,8 +72,7 @@ double PMF::logNormPDF(double x, double loc, double scale)
 }
 
 // Calculate the log probability of the data under the current model
-void PMF::compute_loss(const map<int, VectorXd> &theta,
-                       const map<int, VectorXd> &beta)
+void PMF::compute_loss(const map<int, VectorXd> &theta, const map<int, VectorXd> &beta)
 {
     double loss = 0;
 
@@ -118,9 +113,7 @@ void PMF::compute_loss_from_queue()
             // Waits for the signal that there are items on the m_loss_queue
             // to process or the signal to terminate the thread.
             std::unique_lock<std::mutex> lock(m_mutex);
-            m_cv.wait(lock, [this] {
-                return !(m_fit_in_progress && m_loss_queue.empty());
-            });
+            m_cv.wait(lock, [this] { return !(m_fit_in_progress && m_loss_queue.empty()); });
         }
 
         if (!m_fit_in_progress && m_loss_queue.empty())
@@ -149,8 +142,7 @@ void PMF::compute_loss_from_queue()
 // Subset m_data by rows where values in column is equal to ID
 MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column)
 {
-    VectorXi is_id = (batch.col(column).array() == ID)
-                         .cast<int>(); // which rows have ID in col?
+    VectorXi is_id = (batch.col(column).array() == ID).cast<int>(); // which rows have ID in col?
     int num_rows = is_id.sum();
     int num_cols = batch.cols();
     MatrixXd submatrix(num_rows, num_cols);
@@ -175,10 +167,8 @@ void PMF::fitUsers(const Ref<MatrixXd> &batch, const double learning_rate)
     for (auto &usr_id : unique_users)
     {
         // extract sub-matrix of user usrID's in batch
-        const MatrixXd user_data =
-            subsetByID(batch, usr_id, col_value(Cols::user));
-        const VectorXi &items =
-            user_data.col(col_value(Cols::item)).cast<int>();
+        const MatrixXd user_data = subsetByID(batch, usr_id, col_value(Cols::user));
+        const VectorXi &items = user_data.col(col_value(Cols::item)).cast<int>();
         const VectorXd &ratings = user_data.col(col_value(Cols::rating));
 
         // compute gradient update of user preference vectors
@@ -206,10 +196,8 @@ void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
     for (auto &itm_id : unique_items)
     {
         // extract sub-matrix of item itmID's data
-        const MatrixXd item_data =
-            subsetByID(batch, itm_id, col_value(Cols::item));
-        const VectorXi &users =
-            item_data.col(col_value(Cols::user)).cast<int>();
+        const MatrixXd item_data = subsetByID(batch, itm_id, col_value(Cols::item));
+        const VectorXi &users = item_data.col(col_value(Cols::user)).cast<int>();
         const VectorXd &ratings = item_data.col(col_value(Cols::rating));
 
         // compute gradient update of item attribute vectors
@@ -249,14 +237,10 @@ vector<double> PMF::fit_sequential(const int epochs, const double gamma)
     return m_losses;
 }
 
-vector<double> PMF::fit_parallel(const int epochs, const double gamma,
-                                 const int n_threads)
+vector<double> PMF::fit_parallel(const int epochs, const double gamma, const int n_threads)
 {
     const int max_rows = m_data->rows();
-    int batch_size =
-        max_rows /
-        (n_threads -
-         1); // (n-1) threads for params. update, 1 thread for loss calculation
+    int batch_size = max_rows / (n_threads - 1); // (n-1) threads for params. update, 1 thread for loss calculation
     const int num_batches = max_rows / batch_size;
 
     cout << "Using " << n_threads << " threads" << endl
@@ -264,8 +248,7 @@ vector<double> PMF::fit_parallel(const int epochs, const double gamma,
          << "batch size: " << batch_size << endl
          << endl;
 
-    Utils::guarded_thread compute_loss_thread(
-        [this] { this->compute_loss_from_queue(); });
+    Utils::guarded_thread compute_loss_thread([this] { this->compute_loss_from_queue(); });
 
     for (int epoch = 1; epoch <= epochs; epoch++)
     {
@@ -292,8 +275,7 @@ vector<double> PMF::fit_parallel(const int epochs, const double gamma,
             const int num_cols = col_value(Cols::rating) + 1;
 
             // reference batch of data
-            Ref<MatrixXd> batch =
-                m_data->block(row_start, col_start, num_rows, num_cols);
+            Ref<MatrixXd> batch = m_data->block(row_start, col_start, num_rows, num_cols);
 
             // add batch fit tasks to thread pool
             threadpool.emplace_back([this, batch, gamma] {
@@ -312,11 +294,9 @@ vector<double> PMF::fit_parallel(const int epochs, const double gamma,
     return m_losses;
 }
 
-vector<double> PMF::fit(const int epochs, const double gamma,
-                        const int n_threads)
+vector<double> PMF::fit(const int epochs, const double gamma, const int n_threads)
 {
-    return (n_threads == 1) ? fit_sequential(epochs, gamma)
-                            : fit_parallel(epochs, gamma, n_threads);
+    return (n_threads == 1) ? fit_sequential(epochs, gamma) : fit_parallel(epochs, gamma, n_threads);
 }
 
 // Predict ratings using learnt theta and beta vectors in model
@@ -385,10 +365,8 @@ Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N)
 
     for (auto &user_id : unique_users)
     {
-        const MatrixXd user_data =
-            subsetByID(*data, user_id, col_value(Cols::user));
-        const VectorXi &items =
-            user_data.col(col_value(Cols::item)).cast<int>();
+        const MatrixXd user_data = subsetByID(*data, user_id, col_value(Cols::user));
+        const VectorXi &items = user_data.col(col_value(Cols::item)).cast<int>();
         const VectorXd &ratings = user_data.col(col_value(Cols::rating));
 
         // Get all items with non-negative ratings ("likes") from the current
@@ -397,8 +375,7 @@ Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N)
         VectorXi user_liked(pos_idxs.size());
         for (int i = 0; i < pos_idxs.size(); i++)
         {
-            user_liked[i] =
-                static_cast<int>(items[pos_idxs[i]]); // item type: int
+            user_liked[i] = static_cast<int>(items[pos_idxs[i]]); // item type: int
         }
 
         // Get top N recommendations for the current user_id
