@@ -68,6 +68,7 @@ class PMF
     vector<double> fitSequential(const int epochs, const double gamma);
     vector<double> fitParallel(const int epochs, const double gamma, const int n_threads);
 
+
     VectorXd predict(const MatrixXd &data);
     VectorXi recommend(int user_id, int N = 10);
     vector<pair<string, string>> recommend(int user_id, unordered_map<int, pair<string, string>> &item_map, int N = 10);

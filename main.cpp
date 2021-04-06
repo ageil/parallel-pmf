@@ -41,7 +41,7 @@ int main(int argc, char **argv)
         "n_epochs,n", po::value<int>(&n_epochs), "Num. of learning iterations\n  [default: 200]")(
         "ratio,r", po::value<double>(&ratio), "Ratio for training/test set splitting\n [default: 0.7]")(
         "thread", po::value<int>(&n_threads), "Number of threads for parallelization")(
-        "gamma", po::value<double>(&gamma), "Learning rate for gradient descent\n  [default: 2000]")(
+        "gamma", po::value<double>(&gamma), "learning rate for gradient descent\n  [default: 2000]")(
         "std_theta", po::value<double>(&std_theta), "Std. of theta's prior normal distribution\n  [default: 1]")(
         "std_beta", po::value<double>(&std_beta), "Std. of beta's prior normal distribution\n  [default: 1]");
 
