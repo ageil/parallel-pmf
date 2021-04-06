@@ -17,9 +17,8 @@ void test_nonNegativeIdxs()
 
     vector<int> pos_idxs_gt{3, 4, 5, 6}; // ground truth
     vector<int> pos_idxs = Utils::nonNegativeIdxs(x);
-    Expects(
-        std::equal(pos_idxs_gt.begin(), pos_idxs_gt.end(), pos_idxs.begin()) &&
-        pos_idxs_gt.size() == pos_idxs.size());
+    Expects(std::equal(pos_idxs_gt.begin(), pos_idxs_gt.end(), pos_idxs.begin()) &&
+            pos_idxs_gt.size() == pos_idxs.size());
 }
 
 void test_countIntersect()
@@ -33,6 +32,19 @@ void test_countIntersect()
     int num_intersect_gt = 2; // intersect elements: {3,4}
     int num_intersect = Utils::countIntersect(x1, x2);
     Expects(num_intersect_gt == num_intersect);
+}
+
+void test_getUnique()
+{
+    cout << "Testing getUnique..." << endl;
+    MatrixXd x(4, 2);
+    x << 1, 2, 1, 3, 2, 2, 2, 4;
+    shared_ptr<MatrixXd> x_ptr = make_shared<MatrixXd>(x);
+
+    vector<int> unique_cols_gt = {1, 2}; // ground truth unique values in column 1
+    vector<int> unique_cols = Utils::getUnique(x_ptr, 0);
+    Expects(std::equal(unique_cols_gt.begin(), unique_cols_gt.end(), unique_cols.begin()) &&
+            unique_cols_gt.size() == unique_cols.size());
 }
 
 void test_argsort()
@@ -67,8 +79,7 @@ void test_rmse()
     // rmse(const VectorXd &y, double y_hat)
     cout << " - Testing rmse with constant prediction (y_hat)..." << endl;
     double y_hat_1 = 3;
-    double root_mean_squared_err_gt =
-        sqrt(2); // sqrt[((1-3)^2 + (2-3)^2 + (3-3)^2 + (4-3)^2 + (5-3)^2) / 5]
+    double root_mean_squared_err_gt = sqrt(2); // sqrt[((1-3)^2 + (2-3)^2 + (3-3)^2 + (4-3)^2 + (5-3)^2) / 5]
     double root_mean_squared_err_pred = Utils::rmse(y, y_hat_1);
     Expects(abs(root_mean_squared_err_gt - root_mean_squared_err_pred) <= eps);
 
@@ -76,9 +87,8 @@ void test_rmse()
     // rmse(const VectorXd &y, const VectorXd &y_hat)
     cout << " - Testing rmse with vector prediction (y_hat)..." << endl;
     VectorXd y_hat_2(5);
-    y_hat_2 << 1, 2, 4, 4, 5; // prediction
-    root_mean_squared_err_gt = sqrt(
-        0.2); // sqrt[((1-1)^2 + (2-2)^2 + (3-4)^2 + (4-4)^2 + (5-5)^2) / 5]
+    y_hat_2 << 1, 2, 4, 4, 5;             // prediction
+    root_mean_squared_err_gt = sqrt(0.2); // sqrt[((1-1)^2 + (2-2)^2 + (3-4)^2 + (4-4)^2 + (5-5)^2) / 5]
     root_mean_squared_err_pred = Utils::rmse(y, y_hat_2);
     Expects(abs(root_mean_squared_err_gt - root_mean_squared_err_pred) <= eps);
 }
@@ -105,6 +115,7 @@ int main()
     cout << "-----------------------------------------" << endl;
     test_nonNegativeIdxs();
     test_countIntersect();
+    test_getUnique();
     test_argsort();
     test_rmse();
     test_r2();

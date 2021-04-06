@@ -73,8 +73,7 @@ unsigned long int DataManager::getLineNumber(const string &file_name)
 // Centralize data matrix to mean = median ratings
 void DataManager::centralize()
 {
-    set<double> unique_vals{m_data->col(2).data(),
-                            m_data->col(2).data() + m_data->col(2).size()};
+    set<double> unique_vals{m_data->col(2).data(), m_data->col(2).data() + m_data->col(2).size()};
     double sum = 0;
     for (auto i : unique_vals)
     {
@@ -91,14 +90,12 @@ void DataManager::centralize()
 void DataManager::split(double ratio)
 {
     VectorXi ind = VectorXi::LinSpaced(m_data->rows(), 0, m_data->rows());
-    std::shuffle(ind.data(), ind.data() + m_data->rows(),
-                 std::mt19937(std::random_device()()));
+    std::shuffle(ind.data(), ind.data() + m_data->rows(), std::mt19937(std::random_device()()));
     *m_data = ind.asPermutation() * (*m_data);
 
     int idx = static_cast<int>(m_data->rows() * ratio);
     m_data_train = make_shared<MatrixXd>(m_data->topRows(idx));
-    m_data_test =
-        make_shared<MatrixXd>(m_data->bottomRows(m_data->rows() - idx));
+    m_data_test = make_shared<MatrixXd>(m_data->bottomRows(m_data->rows() - idx));
 }
 
 shared_ptr<MatrixXd> DataManager::getTrain()
@@ -111,7 +108,7 @@ shared_ptr<MatrixXd> DataManager::getTest()
     return m_data_test;
 }
 
-unordered_map<int, string> DataManager::itemIdToName(const string &input)
+unordered_map<int, pair<string, string>> DataManager::loadItemNames(const string &input)
 {
     if (!fs::exists(input))
     {
@@ -124,11 +121,11 @@ unordered_map<int, string> DataManager::itemIdToName(const string &input)
     int movie_id;
     string title;
     string genre;
-    unordered_map<int, string> id_name{};
+    unordered_map<int, pair<string, string>> id_name{};
 
     while (in.read_row(movie_id, title, genre))
     {
-        id_name[movie_id] = title;
+        id_name[movie_id] = pair<string, string>(title, genre);
     }
 
     return id_name;

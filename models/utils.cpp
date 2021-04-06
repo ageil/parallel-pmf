@@ -1,4 +1,5 @@
 #include <cmath>
+#include <iostream>
 #include <set>
 #include <vector>
 
@@ -31,8 +32,7 @@ int countIntersect(const VectorXi &x, const VectorXi &y)
     VectorXi::Map(vi_y.data(), y.size()) = y;
 
     vector<int> intersect{};
-    set_intersection(vi_x.begin(), vi_x.end(), vi_y.begin(), vi_y.end(),
-                     back_inserter(intersect));
+    set_intersection(vi_x.begin(), vi_x.end(), vi_y.begin(), vi_y.end(), back_inserter(intersect));
 
     return intersect.size();
 }
@@ -50,13 +50,11 @@ VectorXi argsort(const VectorXd &x, const Order option)
 
     if (option == Order::ascend)
     {
-        std::sort(indices.begin(), indices.end(),
-                  [&](int a, int b) { return vi[a] < vi[b]; });
+        std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] < vi[b]; });
     }
     else
     {
-        std::sort(indices.begin(), indices.end(),
-                  [&](int a, int b) { return vi[a] > vi[b]; });
+        std::sort(indices.begin(), indices.end(), [&](int a, int b) { return vi[a] > vi[b]; });
     }
 
     Eigen::Map<VectorXi> indices_sorted(indices.data(), indices.size());
