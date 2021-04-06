@@ -39,7 +39,10 @@ void centralize(MatrixXd &data)
     }
 }
 
-// Shuffles data matrix
+/**
+ *  Randomly shuffles the given data matrix linearly spaced.
+ * @param data The matrix to shuffle.
+ */
 void shuffle(MatrixXd &data)
 {
     VectorXi ind = VectorXi::LinSpaced(data.rows(), 0, data.rows());
