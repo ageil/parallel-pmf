@@ -3,12 +3,15 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <random>
 #include <utility>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <Eigen/Dense>
 
@@ -31,6 +34,19 @@ struct Metrics
     double recall;
 };
 
+enum class RecOption
+{
+    user = 0,
+    item = 1,
+    genre = 2
+};
+
+enum class LatentVar
+{
+    theta = 0,
+    beta = 1
+};
+
 class PMF
 {
   private:
@@ -41,6 +57,7 @@ class PMF
     void compute_loss(const map<int, VectorXd> &theta, const map<int, VectorXd> &beta);
     void compute_loss_from_queue();
 
+    void loadModel(filesystem::path &indir, LatentVar option);
     void fitUsers(const Ref<MatrixXd> &batch, const double learning_rate);
     void fitItems(const Ref<MatrixXd> &batch, const double learning_rate);
 
@@ -67,12 +84,17 @@ class PMF
     vector<double> fit(const int epochs, const double gamma, const int n_threads);
     vector<double> fitSequential(const int epochs, const double gamma);
     vector<double> fitParallel(const int epochs, const double gamma, const int n_threads);
+    void load(filesystem::path &indir);
+    void save(filesystem::path &outdir);
 
 
     VectorXd predict(const MatrixXd &data);
     VectorXi recommend(int user_id, int N = 10);
-    vector<pair<string, string>> recommend(int user_id, unordered_map<int, pair<string, string>> &item_map, int N = 10);
-    Metrics accuracy(const shared_ptr<MatrixXd> &data, const int N);
+    vector<string> recommend(int user_id, unordered_map<int, string> &item_name, int N = 10);
+    vector<string> recommendByGenre (string &genre, unordered_map<int, string> &id_name,
+                                     unordered_map<string, unordered_set<int>> genre_ids, int N = 10);
+    vector<string> getSimilarItems(int &item_id, unordered_map<int, string> &id_name, int N = 10);
+    Metrics accuracy(const shared_ptr<MatrixXd> &data, int N = 10);
 };
 } // namespace Model
 

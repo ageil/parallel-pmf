@@ -1,9 +1,12 @@
 #include "PMF.h"
 #include "ratingsdata.h"
 #include "utils.h"
+#include "../csvlib/csv.h"
 
 #include <algorithm>
 #include <cmath>
+#include <chrono>
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <thread>
@@ -98,7 +101,7 @@ void PMF::compute_loss(const map<int, VectorXd> &theta, const map<int, VectorXd>
     }
 
     m_losses.push_back(loss);
-    cout << "loss: " << loss << endl;
+    cout << "loss = " << loss << endl;
 }
 
 // Computes loss from the theta and beta snapshots found in the
@@ -226,7 +229,7 @@ vector<double> PMF::fitSequential(const int epochs, const double gamma)
         {
             // run loss
             compute_loss(m_theta, m_beta);
-            cout << "epoch: " << epoch << endl;
+            cout << "epoch " << epoch << ":\t";
         }
 
         fitUsers(*m_data, gamma);
@@ -260,7 +263,7 @@ vector<double> PMF::fitParallel(const int epochs, const double gamma, const int 
             }
 
             m_cv.notify_one();
-            cout << "epoch: " << epoch << endl;
+            cout << "epoch " << epoch << ":\t";
         }
 
         vector<Utils::guarded_thread> threadpool;
@@ -297,6 +300,90 @@ vector<double> PMF::fitParallel(const int epochs, const double gamma, const int 
 vector<double> PMF::fit(const int epochs, const double gamma, const int n_threads)
 {
     return (n_threads == 1) ? fitSequential(epochs, gamma) : fitParallel(epochs, gamma, n_threads);
+}
+
+void PMF::load(filesystem::path &indir)
+{
+    cout << "Loading previously learnt parameters into model..." << endl;
+
+    filesystem::path theta_fname = indir / "theta.csv";
+    filesystem::path beta_fname = indir / "beta.csv";
+    if (!filesystem::exists(theta_fname) || !filesystem::exists(beta_fname))
+    {
+        cerr << "Model doesn't have learnt parameters, need to fit data first" << endl;
+        exit(1);
+    }
+
+    loadModel(theta_fname, LatentVar::theta);
+    loadModel(beta_fname, LatentVar::beta);
+}
+
+void PMF::loadModel(filesystem::path &indir, LatentVar option)
+{
+    io::CSVReader<2> in(indir);
+    in.read_header(io::ignore_extra_column, "id", "vector");
+    int id;
+    string str;
+
+    while (in.read_row(id, str))
+    {
+        vector<string> tokenized = Utils::tokenize(str);
+        vector<double> vi_params(tokenized.size());
+        std::transform(tokenized.begin(), tokenized.end(), vi_params.begin(),
+                       [&](const string &s) { return std::stod(s); });
+        Eigen::Map<VectorXd> params(vi_params.data(), vi_params.size());
+
+        if (option == LatentVar::theta)
+        {
+            m_theta[id] = params;
+        }
+        else
+        {
+            m_beta[id] = params;
+        }
+    }
+}
+
+void PMF::save(filesystem::path &outdir)
+{
+    if (!filesystem::exists(outdir))
+    {
+        filesystem::create_directory(outdir);
+    }
+
+    cout << "Saving loss values..." << endl;
+    filesystem::path loss_fname = outdir / "loss.csv";
+    ofstream loss_file;
+    loss_file.open(loss_fname);
+    loss_file << "Loss";
+    for (auto &loss : m_losses)
+    {
+        loss_file << endl << loss;
+    }
+    loss_file.close();
+
+    cout << "Saving model parameters..." << endl;
+    filesystem::path theta_fname = outdir / "theta.csv";
+    ofstream theta_file;
+    theta_file.open(theta_fname);
+    theta_file << "id,vector";
+
+    for (auto const &[id, theta_i] : m_theta)
+    {
+        theta_file << endl << id << ',' << theta_i.transpose();
+    }
+    theta_file.close();
+
+    filesystem::path beta_fname = outdir / "beta.csv";
+    ofstream beta_file;
+    beta_file.open(beta_fname);
+    beta_file << "id,vector";
+
+    for (auto const &[id, beta_i] : m_beta)
+    {
+        beta_file << endl << id << ',' << beta_i.transpose();
+    }
+    beta_file.close();
 }
 
 // Predict ratings using learnt theta and beta vectors in model
@@ -353,25 +440,77 @@ VectorXi PMF::recommend(int user_id, const int N)
     return top_rec;
 }
 
-vector<pair<string, string>> PMF::recommend(int user_id, unordered_map<int, pair<string, string>> &item_map,
+vector<string> PMF::recommend(int user_id, unordered_map<int, string> &item_name,
                                             const int N)
 {
     VectorXi rec = recommend(user_id, N);
-    vector<pair<string, string>> rec_names{};
+    vector<string> rec_names{};
     for (int i = 0; i < rec.size(); i++)
     {
-        rec_names.push_back(item_map[rec[i]]);
+        rec_names.push_back(item_name[rec[i]]);
     }
 
     return rec_names;
+}
+
+vector<string> PMF::recommendByGenre (string &genre, unordered_map<int, string> &id_name,
+                                 unordered_map<string, unordered_set<int>> genre_ids, const int N)
+{
+    vector<string> similar_items {};
+    if (genre_ids.find(genre) == genre_ids.end())
+    {
+        cerr << "Didn't find the genre " << genre << " in current dataset..." << endl;
+        return similar_items;
+    }
+
+    // Random pick a movie with the input genre
+    unordered_set<int> id_set = genre_ids[genre];
+    default_random_engine generator;
+    generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
+    uniform_int_distribution<int> dist(0, id_set.size()-1);
+    auto itr = id_set.begin();
+    int loc = dist(generator);
+    std::advance(itr, loc);
+    int rand_id = *itr;
+
+    // Return top N items most similar to the selected item
+    return getSimilarItems(rand_id, id_name, N);
+}
+
+vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id_name, const int N)
+{
+    VectorXd beta_item_id = m_beta.at(item_id);
+    vector<double> similarities {};
+    unordered_map<double, int> similarity_id {};
+
+    for (auto const &[i, beta_i] : m_beta)
+    {
+        if (i != item_id)
+        {
+            double similarity = Utils::cosine(beta_item_id, beta_i);
+            similarities.push_back(similarity);
+            similarity_id[similarity] = i;
+        }
+    }
+
+    // Return N most similar items
+    vector<string> similar_items {};
+    std::sort(similarities.begin(), similarities.end(), std::greater<>());
+    for (int i = 0; i < N; i++)
+    {
+        int id = similarity_id[similarities[i]];
+        similar_items.push_back(id_name[id]);
+    }
+
+    return similar_items;
 }
 
 // Return the precision & recall of the top N predicted items for each user in
 // the give dataset
 Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N)
 {
-    int num_likes_total = 0;
-    int num_hits_total = 0;
+    double num_likes_total = 0;
+    double num_hits_total = 0;
 
     MatrixXd users = (*data).col(col_value(Cols::user));
     set<int> unique_users = {users.data(), users.data() + users.size()};
@@ -402,7 +541,7 @@ Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N)
     }
 
     Metrics acc{};
-    acc.precision = num_hits_total / (N * data->rows());
+    acc.precision = num_hits_total / static_cast<double>(N * unique_users.size());
     acc.recall = num_hits_total / num_likes_total;
 
     return acc;

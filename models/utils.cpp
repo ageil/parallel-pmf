@@ -5,10 +5,20 @@
 
 #include "utils.h"
 
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
 #include <gsl/gsl_assert>
 
 namespace Utils
 {
+
+vector<string> tokenize(string &str, const string delimiter)
+{
+    vector<string> tokenized {};
+    boost::split(tokenized, str, boost::is_any_of(delimiter), boost::token_compress_on);
+
+    return tokenized;
+}
 
 vector<int> nonNegativeIdxs(const VectorXd &x)
 {
@@ -102,6 +112,14 @@ double r2(const VectorXd &y, const VectorXd &y_hat)
     double SSE = (y - y_hat).array().square().sum();
     double TSS = (y - y_mean).array().square().sum();
     return 1 - (SSE / TSS);
+}
+
+double cosine(const VectorXd &v1, const VectorXd &v2)
+{
+    Expects(v1.size() == v2.size());
+    double distance = v1.dot(v2) / (v1.norm() * v2.norm());
+
+    return distance;
 }
 
 } // namespace Utils
