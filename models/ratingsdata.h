@@ -3,19 +3,19 @@
 
 namespace Model
 {
-    namespace RatingsData
-    {
+namespace RatingsData
+{
 
-        enum class Cols
-        {
-            user = 0,
-            item = 1,
-            rating = 2
-        };
+enum class Cols
+{
+    user = 0,
+    item = 1,
+    rating = 2
+};
 
-        int col_value(Cols);
+int col_value(Cols);
 
-    } //namespace RatingsData
-} //namespace Model
+} // namespace RatingsData
+} // namespace Model
 
 #endif

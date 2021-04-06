@@ -1,16 +1,16 @@
-#include <iostream>
-#include <fstream>
-#include <memory>
 #include <chrono>
+#include <fstream>
+#include <iostream>
+#include <memory>
 #include <random>
 #include <tuple>
 
-#include "models/PMF.h"
 #include "models/DataManager.h"
+#include "models/PMF.h"
 #include "models/utils.h"
 
-#include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/program_options.hpp>
 
 using namespace std;
 using namespace Model;
@@ -27,24 +27,32 @@ int main(int argc, char **argv)
     int k = 3;
     int n_epochs = 200;  // default # of iterations
     double gamma = 0.01; // default learning rate for gradient descent
-    double ratio = 0.7; // train-test split ratio
+    double ratio = 0.7;  // train-test split ratio
     int n_threads = 2;
 
     double std_theta = 1.0;
     double std_beta = 1.0;
 
-    po::options_description desc("Parameters for Probabilistic Matrix Factorization (PMF)");
-    desc.add_options()
-        ("help,h", "Help")
-        ("input,i", po::value<string>(&input), "Input file name")
-        ("output,o", po::value<fs::path>(&outdir), "Output directory\n  [default: current_path/results/]")
-        ("n_components,k", po::value<int>(&k), "Number of components (k)\n [default: 3]")
-        ("n_epochs,n", po::value<int>(&n_epochs), "Num. of learning iterations\n  [default: 200]")
-        ("ratio,r", po::value<double>(&ratio), "Ratio for training/test set splitting\n [default: 0.7]")
-        ("thread", po::value<int>(&n_threads), "Number of threads for parallelization")
-        ("gamma", po::value<double>(&gamma), "learning rate for gradient descent\n  [default: 2000]")
-        ("std_theta", po::value<double>(&std_theta), "Std. of theta's prior normal distribution\n  [default: 1]")
-        ("std_beta", po::value<double>(&std_beta), "Std. of beta's prior normal distribution\n  [default: 1]");
+    po::options_description desc(
+        "Parameters for Probabilistic Matrix Factorization (PMF)");
+    desc.add_options()("help,h", "Help")("input,i", po::value<string>(&input),
+                                         "Input file name")(
+        "output,o", po::value<fs::path>(&outdir),
+        "Output directory\n  [default: current_path/results/]")(
+        "n_components,k", po::value<int>(&k),
+        "Number of components (k)\n [default: 3]")(
+        "n_epochs,n", po::value<int>(&n_epochs),
+        "Num. of learning iterations\n  [default: 200]")(
+        "ratio,r", po::value<double>(&ratio),
+        "Ratio for training/test set splitting\n [default: 0.7]")(
+        "thread", po::value<int>(&n_threads),
+        "Number of threads for parallelization")(
+        "gamma", po::value<double>(&gamma),
+        "learning rate for gradient descent\n  [default: 2000]")(
+        "std_theta", po::value<double>(&std_theta),
+        "Std. of theta's prior normal distribution\n  [default: 1]")(
+        "std_beta", po::value<double>(&std_beta),
+        "Std. of beta's prior normal distribution\n  [default: 1]");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -80,8 +88,10 @@ int main(int argc, char **argv)
     Model::PMF model{ratings_train, k, std_beta, std_theta, dm.users, dm.items};
     vector<double> losses = model.fit(n_epochs, gamma, n_threads);
     auto t1 = chrono::steady_clock::now();
-    double delta_t = std::chrono::duration<double, std::milli> (t1 - t0).count() * 0.001;
-    cout << "Running time for " << n_epochs << " iterations: " << delta_t << " s." << endl;
+    double delta_t =
+        std::chrono::duration<double, std::milli>(t1 - t0).count() * 0.001;
+    cout << "Running time for " << n_epochs << " iterations: " << delta_t
+         << " s." << endl;
     cout << endl;
 
     // (3).Evaluate the model on the test data
@@ -96,11 +106,13 @@ int main(int argc, char **argv)
     cout << "RMSE(mean): " << baseline_avg << endl;
     cout << "RMSE(pred): " << error << endl;
 
-    // precision & recall of the top N items recommended for each user [Not in use]
+    // precision & recall of the top N items recommended for each user [Not in
+    // use]
     /*
     int N = 500;
     Metrics acc = model.accuracy(ratings_train, N);
-    cout << "Metrics(pred) for top " << N << " recommended items for each user\n"
+    cout << "Metrics(pred) for top " << N << " recommended items for each
+    user\n"
          << "Precision: " << acc.precision << " Recall: " << acc.recall << endl;
      */
 

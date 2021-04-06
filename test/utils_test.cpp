@@ -1,5 +1,5 @@
-#include <iostream>
 #include <cmath>
+#include <iostream>
 #include <vector>
 
 #include "../models/utils.h"
@@ -17,8 +17,9 @@ void test_nonNegativeIdxs()
 
     vector<int> pos_idxs_gt{3, 4, 5, 6}; // ground truth
     vector<int> pos_idxs = Utils::nonNegativeIdxs(x);
-    Expects(std::equal(pos_idxs_gt.begin(), pos_idxs_gt.end(), pos_idxs.begin()) &&
-            pos_idxs_gt.size() == pos_idxs.size());
+    Expects(
+        std::equal(pos_idxs_gt.begin(), pos_idxs_gt.end(), pos_idxs.begin()) &&
+        pos_idxs_gt.size() == pos_idxs.size());
 }
 
 void test_countIntersect()
@@ -66,7 +67,8 @@ void test_rmse()
     // rmse(const VectorXd &y, double y_hat)
     cout << " - Testing rmse with constant prediction (y_hat)..." << endl;
     double y_hat_1 = 3;
-    double root_mean_squared_err_gt = sqrt(2); // sqrt[((1-3)^2 + (2-3)^2 + (3-3)^2 + (4-3)^2 + (5-3)^2) / 5]
+    double root_mean_squared_err_gt =
+        sqrt(2); // sqrt[((1-3)^2 + (2-3)^2 + (3-3)^2 + (4-3)^2 + (5-3)^2) / 5]
     double root_mean_squared_err_pred = Utils::rmse(y, y_hat_1);
     Expects(abs(root_mean_squared_err_gt - root_mean_squared_err_pred) <= eps);
 
@@ -74,8 +76,9 @@ void test_rmse()
     // rmse(const VectorXd &y, const VectorXd &y_hat)
     cout << " - Testing rmse with vector prediction (y_hat)..." << endl;
     VectorXd y_hat_2(5);
-    y_hat_2 << 1, 2, 4, 4, 5;             // prediction
-    root_mean_squared_err_gt = sqrt(0.2); // sqrt[((1-1)^2 + (2-2)^2 + (3-4)^2 + (4-4)^2 + (5-5)^2) / 5]
+    y_hat_2 << 1, 2, 4, 4, 5; // prediction
+    root_mean_squared_err_gt = sqrt(
+        0.2); // sqrt[((1-1)^2 + (2-2)^2 + (3-4)^2 + (4-4)^2 + (5-5)^2) / 5]
     root_mean_squared_err_pred = Utils::rmse(y, y_hat_2);
     Expects(abs(root_mean_squared_err_gt - root_mean_squared_err_pred) <= eps);
 }
