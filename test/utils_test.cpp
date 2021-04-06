@@ -34,6 +34,19 @@ void test_countIntersect()
     Expects(num_intersect_gt == num_intersect);
 }
 
+void test_getUnique()
+{
+    cout << "Testing getUnique..." << endl;
+    MatrixXd x(4, 2);
+    x << 1, 2, 1, 3, 2, 2, 2, 4;
+    shared_ptr<MatrixXd> x_ptr = make_shared<MatrixXd>(x);
+
+    vector<int> unique_cols_gt = {1, 2}; // ground truth unique values in column 1
+    vector<int> unique_cols = Utils::getUnique(x_ptr, 0);
+    Expects(std::equal(unique_cols_gt.begin(), unique_cols_gt.end(), unique_cols.begin()) &&
+            unique_cols_gt.size() == unique_cols.size());
+}
+
 void test_argsort()
 {
     cout << "Testing argsort..." << endl;
@@ -102,6 +115,7 @@ int main()
     cout << "-----------------------------------------" << endl;
     test_nonNegativeIdxs();
     test_countIntersect();
+    test_getUnique();
     test_argsort();
     test_rmse();
     test_r2();

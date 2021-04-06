@@ -30,7 +30,7 @@ class DataManager
     shared_ptr<MatrixXd> load(const string &input, double ratio);
     shared_ptr<MatrixXd> getTrain();
     shared_ptr<MatrixXd> getTest();
-    unordered_map<int, string> itemIdToName(const string &input);
+    unordered_map<int, pair<string, string>> loadItemNames(const string &input);
 };
 
 } // namespace Utils

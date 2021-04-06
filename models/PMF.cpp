@@ -216,7 +216,7 @@ void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
     }
 }
 
-vector<double> PMF::fit_sequential(const int epochs, const double gamma)
+vector<double> PMF::fitSequential(const int epochs, const double gamma)
 {
     cout << "Using 1 thread (sequential)" << endl << endl;
 
@@ -237,7 +237,7 @@ vector<double> PMF::fit_sequential(const int epochs, const double gamma)
     return m_losses;
 }
 
-vector<double> PMF::fit_parallel(const int epochs, const double gamma, const int n_threads)
+vector<double> PMF::fitParallel(const int epochs, const double gamma, const int n_threads)
 {
     const int max_rows = m_data->rows();
     int batch_size = max_rows / (n_threads - 1); // (n-1) threads for params. update, 1 thread for loss calculation
@@ -296,7 +296,7 @@ vector<double> PMF::fit_parallel(const int epochs, const double gamma, const int
 
 vector<double> PMF::fit(const int epochs, const double gamma, const int n_threads)
 {
-    return (n_threads == 1) ? fit_sequential(epochs, gamma) : fit_parallel(epochs, gamma, n_threads);
+    return (n_threads == 1) ? fitSequential(epochs, gamma) : fitParallel(epochs, gamma, n_threads);
 }
 
 // Predict ratings using learnt theta and beta vectors in model
@@ -351,6 +351,19 @@ VectorXi PMF::recommend(int user_id, const int N)
     VectorXi top_rec = items_rec.topRows(N);
 
     return top_rec;
+}
+
+vector<pair<string, string>> PMF::recommend(int user_id, unordered_map<int, pair<string, string>> &item_map,
+                                            const int N)
+{
+    VectorXi rec = recommend(user_id, N);
+    vector<pair<string, string>> rec_names{};
+    for (int i = 0; i < rec.size(); i++)
+    {
+        rec_names.push_back(item_map[rec[i]]);
+    }
+
+    return rec_names;
 }
 
 // Return the precision & recall of the top N predicted items for each user in
