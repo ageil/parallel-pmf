@@ -130,7 +130,7 @@ shared_ptr<MatrixXd> DataManager::getTest() const
     return m_data_test;
 }
 
-unordered_map<int, string> DataManager::itemIdToName(const string &input)
+unordered_map<int, pair<string, string>> DataManager::loadItemNames(const string &input) const
 {
     if (!fs::exists(input))
     {
@@ -143,11 +143,11 @@ unordered_map<int, string> DataManager::itemIdToName(const string &input)
     int movie_id;
     string title;
     string genre;
-    unordered_map<int, string> id_name{};
+    unordered_map<int, pair<string, string>> id_name;
 
     while (in.read_row(movie_id, title, genre))
     {
-        id_name[movie_id] = title;
+        id_name[movie_id] = pair<string, string>(title, genre);
     }
 
     return id_name;

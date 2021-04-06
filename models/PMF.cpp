@@ -25,17 +25,18 @@ PMF::PMF(const shared_ptr<DataManager::DataManager> &data_mgr, const int k, cons
     , m_std_theta(std_theta)
     , m_fit_in_progress(false)
 {
-    cout << "Initializing PMF with `data` size " << m_training_data->rows() << " x " << m_training_data->cols()
+    cout << "[PMF] Initializing PMF with `data` size " << m_training_data->rows() << " x " << m_training_data->cols()
          << " with k=" << k << " std_beta=" << std_beta << " std_theta=" << std_theta << endl;
 
     normal_distribution<double> dist_beta(0, std_beta);
     normal_distribution<double> dist_theta(0, std_theta);
 
     initVectors(dist_theta, m_data_mgr->users, m_theta, k);
-    cout << "Initialized " << m_theta.size() << " users in theta map \n";
+    cout << "[PMF] Initialized " << m_theta.size() << " users in theta map \n";
 
     initVectors(dist_beta, m_data_mgr->items, m_beta, k);
-    cout << "Initialized " << m_beta.size() << " items in beta map \n";
+    cout << "[PMF] Initialized " << m_beta.size() << " items in beta map \n";
+    cout << "[PMF] Initialization complete. \n\n";
 }
 
 PMF::~PMF()
@@ -91,7 +92,7 @@ MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
     return submatrix;
 }
 
-void PMF::compute_loss(const map<int, VectorXd> &theta, const map<int, VectorXd> &beta)
+void PMF::computeLoss(const map<int, VectorXd> &theta, const map<int, VectorXd> &beta)
 {
     double loss = 0;
 
@@ -118,12 +119,12 @@ void PMF::compute_loss(const map<int, VectorXd> &theta, const map<int, VectorXd>
     }
 
     m_losses.push_back(loss);
-    cout << "loss: " << loss << endl;
+    cout << "[computeLoss] Loss: " << loss << endl;
 }
 
-void PMF::compute_loss_from_queue()
+void PMF::computeLossFromQueue()
 {
-    cout << "Loss computation thread started \n";
+    cout << "[computeLossFromQueue] Loss computation thread started.\n";
     m_fit_in_progress = true;
 
     while (m_fit_in_progress || !m_loss_queue.empty())
@@ -154,8 +155,10 @@ void PMF::compute_loss_from_queue()
         const auto theta_snapshot = snapshot.theta;
         const auto beta_snapshot = snapshot.beta;
 
-        compute_loss(theta_snapshot, beta_snapshot);
+        computeLoss(theta_snapshot, beta_snapshot);
     }
+
+    cout << "[computeLossFromQueue] Loss computation thread completed.\n\n";
 }
 
 void PMF::fitUsers(const Ref<MatrixXd> &batch, const double learning_rate)
@@ -163,7 +166,7 @@ void PMF::fitUsers(const Ref<MatrixXd> &batch, const double learning_rate)
     MatrixXd users = batch.col(col_value(Cols::user));
     set<int> unique_users = {users.data(), users.data() + users.size()};
 
-    for (auto &usr_id : unique_users)
+    for (const auto usr_id : unique_users)
     {
         // extract sub-matrix of user usrID's in batch
         const MatrixXd user_data = subsetByID(batch, usr_id, col_value(Cols::user));
@@ -192,7 +195,7 @@ void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
     MatrixXd items = batch.col(col_value(Cols::item));
     set<int> unique_items = {items.data(), items.data() + items.size()};
 
-    for (auto &itm_id : unique_items)
+    for (const auto itm_id : unique_items)
     {
         // extract sub-matrix of item itmID's data
         const MatrixXd item_data = subsetByID(batch, itm_id, col_value(Cols::item));
@@ -215,7 +218,7 @@ void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
     }
 }
 
-vector<double> PMF::fit_sequential(const int epochs, const double gamma)
+vector<double> PMF::fitSequential(const int epochs, const double gamma)
 {
     cout << "Running fit (sequential) on main thread." << endl << endl;
 
@@ -224,8 +227,8 @@ vector<double> PMF::fit_sequential(const int epochs, const double gamma)
         if (epoch % 10 == 0)
         {
             // run loss
-            compute_loss(m_theta, m_beta);
-            cout << "epoch: " << epoch << endl;
+            computeLoss(m_theta, m_beta);
+            cout << "[fitSequential] Epoch: " << epoch << endl;
         }
 
         fitUsers(*m_training_data, gamma);
@@ -236,17 +239,20 @@ vector<double> PMF::fit_sequential(const int epochs, const double gamma)
     return m_losses;
 }
 
-vector<double> PMF::fit_parallel(const int epochs, const double gamma, const int n_threads)
+vector<double> PMF::fitParallel(const int epochs, const double gamma, const int n_threads)
 {
     const int max_rows = m_training_data->rows();
     int batch_size = max_rows / (n_threads - 1); // (n-1) threads for params. update, 1 thread for loss calculation
     const int num_batches = max_rows / batch_size;
 
-    cout << "Using " << n_threads << " threads"
-         << "\nTotal epochs: " << epochs << "\nmax rows: " << max_rows << "\nbatch size: " << batch_size
-         << "\nnum batches: " << num_batches << endl;
+    cout << "[fitParallel] Using " << n_threads << " threads" << endl
+         << "[fitParallel] Total epochs: " << epochs << endl
+         << "[fitParallel] max rows: " << max_rows << endl
+         << "[fitParallel] batch size: " << batch_size << endl
+         << "[fitParallel] num batches: " << num_batches << endl
+         << endl;
 
-    Utils::guarded_thread compute_loss_thread([this] { this->compute_loss_from_queue(); });
+    Utils::guarded_thread compute_loss_thread([this] { this->computeLossFromQueue(); });
 
     for (int epoch = 1; epoch <= epochs; epoch++)
     {
@@ -258,7 +264,7 @@ vector<double> PMF::fit_parallel(const int epochs, const double gamma, const int
             }
 
             m_cv.notify_one();
-            cout << "epoch: " << epoch << endl;
+            cout << "[fitParallel] Epoch: " << epoch << endl;
         }
 
         vector<Utils::guarded_thread> threadpool;
@@ -343,6 +349,24 @@ VectorXi PMF::recommend(const int user_id, const int N) const
     return top_rec;
 }
 
+vector<pair<string, string>> PMF::recommend(const int user_id, const unordered_map<int, pair<string, string>> &item_map,
+                                            const int N) const
+{
+    // Get top N item recommendations for user
+    VectorXi rec = recommend(user_id, N);
+
+    // Translate recomended item ids to item names
+    vector<pair<string, string>> rec_names;
+    for (int i = 0; i < rec.size(); i++)
+    {
+        rec_names.push_back(item_map.at(rec[i]));
+    }
+
+    return rec_names;
+}
+
+// Return the precision & recall of the top N predicted items for each user in
+// the give dataset
 Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N) const
 {
     int num_likes_total = 0;

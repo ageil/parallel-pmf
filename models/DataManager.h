@@ -23,6 +23,7 @@ class DataManager
     shared_ptr<MatrixXd> m_data_train;
     shared_ptr<MatrixXd> m_data_test;
 
+    // Splits m_data into train-test data with given ratio (e.g. ratio=0.7 will split to 70% train, 30% test)
     tuple<TrainingData, TestingData> split(const double ratio);
 
   public:
@@ -33,7 +34,8 @@ class DataManager
 
     shared_ptr<MatrixXd> getTrain() const;
     shared_ptr<MatrixXd> getTest() const;
-    unordered_map<int, string> itemIdToName(const string &input);
+
+    unordered_map<int, pair<string, string>> loadItemNames(const string &input) const;
 };
 
 } // namespace DataManager

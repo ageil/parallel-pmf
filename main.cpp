@@ -20,6 +20,7 @@ int main(int argc, char **argv)
 {
     // Initialize default values for arguments, path configuration
     string input = "./movielens/ratings.csv";
+    string item_name_input = "./movielens/movies.csv";
     fs::path outdir("results");
     int k = 3;
     int n_epochs = 200;  // default # of iterations
@@ -68,33 +69,36 @@ int main(int argc, char **argv)
     const bool run_fit_sequential = vm["run_sequential"].as<bool>();
 
     // (1). read CSV & split to training & test sets
+    auto dm_t0 = chrono::steady_clock::now();
+
     const auto dataManager = make_shared<DataManager::DataManager>(input, ratio);
-    shared_ptr<MatrixXd> ratings_train = dataManager->getTrain();
-    shared_ptr<MatrixXd> ratings_test = dataManager->getTest();
+
+    auto dm_t1 = chrono::steady_clock::now();
+    double dm_delta_t = std::chrono::duration<double, std::milli>(dm_t1 - dm_t0).count() * 0.001;
+    cout << "Took " << dm_delta_t << " s. to load data. \n\n";
 
     // (2). Fit the model to the training data
-    // Model::PMF model{ratings_train, k, std_beta, std_theta, dm.users, dm.items};
     Model::PMF model{dataManager, k, std_beta, std_theta};
 
-    auto t0 = chrono::steady_clock::now();
+    auto fit_t0 = chrono::steady_clock::now();
     vector<double> losses;
 
     if (run_fit_sequential)
     {
-        losses = model.fit_sequential(n_epochs, gamma);
+        losses = model.fitSequential(n_epochs, gamma);
     }
     else
     {
-        losses = model.fit_parallel(n_epochs, gamma, n_threads);
+        losses = model.fitParallel(n_epochs, gamma, n_threads);
     }
 
-    auto t1 = chrono::steady_clock::now();
-    double delta_t = std::chrono::duration<double, std::milli>(t1 - t0).count() * 0.001;
-    cout << "Running time for " << n_epochs << " iterations: " << delta_t << " s." << endl;
-    cout << endl;
+    auto fit_t1 = chrono::steady_clock::now();
+    double fit_delta_t = std::chrono::duration<double, std::milli>(fit_t1 - fit_t0).count() * 0.001;
+    cout << "Running time for " << n_epochs << " iterations: " << fit_delta_t << " s.\n\n";
 
     // (3).Evaluate the model on the test data
     // RMSE of baseline, avg. & the learned model
+    shared_ptr<MatrixXd> ratings_test = dataManager->getTest();
     VectorXd actual = ratings_test->rightCols(1);
     VectorXd predicted = model.predict(ratings_test->leftCols(2));
     double error = Utils::rmse(actual, predicted);
@@ -105,22 +109,27 @@ int main(int argc, char **argv)
     cout << "RMSE(mean): " << baseline_avg << endl;
     cout << "RMSE(pred): " << error << endl;
 
-    // precision & recall of the top N items recommended for each user [Not in
-    // use]
+    // precision & recall of the top N items recommended for each user [Not in use]
     /*
     int N = 500;
     Metrics acc = model.accuracy(ratings_train, N);
-    cout << "Metrics(pred) for top " << N << " recommended items for each
-    user\n"
+    cout << "Metrics(pred) for top " << N << " recommended items for each user\n"
          << "Precision: " << acc.precision << " Recall: " << acc.recall << endl;
      */
 
     // (4). Recommend top 10 movies for a user
-    int user_id = 1;
+    int user_id = 120;
     int n_top_items = 10;
-    VectorXi rec = model.recommend(user_id, n_top_items);
+
+    // item id <-> name map
+    unordered_map<int, pair<string, string>> item_map = dataManager->loadItemNames(item_name_input);
+    vector<pair<string, string>> rec = model.recommend(user_id, item_map, n_top_items);
+
     cout << "\nTop 10 recommended movies for user " << user_id << " :" << endl;
-    cout << rec << endl;
+    for (auto &info : rec)
+    {
+        cout << "Movie: " << info.first << '\t' << "Genre: " << info.second << endl;
+    }
 
     // (5). Output losses & prediction results to outdir
 
