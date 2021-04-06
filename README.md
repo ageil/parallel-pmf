@@ -1,9 +1,9 @@
-# A parallel implementation of Probabilistic Matrix Factorization in C++
+# Parallel Probabilistic Matrix Factorization using C++
 
 ## About
-Brief introduction of Probablistic Matrix Factorization...
+Probablistic Matrix Factorization is a class of graphical models commonly used for recommender systems. This project provides a parallel implementation of a Gaussian matrix factorization model utilizing stochastic gradient ascent with no locking to obtain unbiased Maximum A Posteriori (MAP) estimates of the latent user preference and attribute vectors.
 
-## Requirement & Prequisite libraries
+## Requirements & Prequisite libraries
 * Boost >= 1.7.0
 * [Eigen3](https://eigen.tuxfamily.org/index.php?title=Main_Page) >=  3.3.9
 
@@ -53,4 +53,7 @@ Parameters for Probabilistic Matrix Factorization (PMF):
 Please refer to the sample running scripts [here](script/)
 
 ## References
-To be completed
+- Mnih, A., & Salakhutdinov, R. R. (2007). Probabilistic matrix factorization. *Advances in neural information processing systems*, *20*, 1257-1264
+- Niu, F., Recht, B., Ré, C., & Wright, S. J. (2011). Hogwild!: A lock-free approach to parallelizing stochastic gradient descent. arXiv preprint arXiv:1106.5730
+- GroupLens Research (2021). MovieLens dataset. https://grouplens.org/datasets/movielens/
+
