@@ -2,11 +2,9 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
-#include <random>
-#include <tuple>
 
-#include "models/DataManager.h"
 #include "models/PMF.h"
+#include "models/datamanager.h"
 #include "models/utils.h"
 
 #include <boost/program_options.hpp>
@@ -31,7 +29,7 @@ int main(int argc, char **argv)
     int n_epochs = 200;  // default # of iterations
     double gamma = 0.01; // default learning rate for gradient descent
     double ratio = 0.7;  // train-test split ratio
-    int n_threads = 2;
+    int n_threads = 50;
 
     double std_theta = 1.0;
     double std_beta = 1.0;
@@ -48,6 +46,7 @@ int main(int argc, char **argv)
         "gamma", po::value<double>(&gamma), "Learning rate for gradient descent\n  [default: 0.01]")(
         "std_theta", po::value<double>(&std_theta), "Std. of theta's prior normal distribution\n  [default: 1]")(
         "std_beta", po::value<double>(&std_beta), "Std. of beta's prior normal distribution\n  [default: 1]")(
+        "run_sequential,s", po::bool_switch()->default_value(false), "Enable running model fitting sequentially")(
         "user", po::bool_switch()->default_value(false), "Recommend items for given user")(
         "item", po::bool_switch()->default_value(false), "Recommend similar items for a given item")(
         "genre", po::bool_switch()->default_value(false), "Recommend items for a given genre");
@@ -90,28 +89,44 @@ int main(int argc, char **argv)
         filesystem::create_directory(outdir);
     }
 
+    const bool run_fit_sequential = vm["run_sequential"].as<bool>();
+
+    // (1). read CSV & split to training & test sets
+    auto dm_t0 = chrono::steady_clock::now();
+
+    const auto data_mgr = make_shared<DataManager::DataManager>(input, ratio);
+
+    auto dm_t1 = chrono::steady_clock::now();
+    double dm_delta_t = std::chrono::duration<double, std::milli>(dm_t1 - dm_t0).count() * 0.001;
+    cout << "Took " << dm_delta_t << " s. to load data. \n\n";
+
+    // (2). Fit the model to the training data
+    Model::PMF model{data_mgr, k, std_beta, std_theta};
+
     if (task == "train")
     {
-        // (1). Load datasets, split to training & test sets
-        Utils::DataManager dm = DataManager();
-        shared_ptr<MatrixXd> ratings = dm.load(input, ratio); // load main dataset
-        // shared_ptr<MatrixXd> ratings_train = dm.getTrain();
-        // shared_ptr<MatrixXd> ratings_test = dm.getTest();
 
-        // (2). Initialize Model object
-        Model::PMF model{ratings, k, std_beta, std_theta, dm.users, dm.items};
+        auto fit_t0 = chrono::steady_clock::now();
+        vector<double> losses;
 
-        // (3). Train: fit the model to the training data
-        auto t0 = chrono::steady_clock::now();
-        vector<double> losses = model.fit(n_epochs, gamma, n_threads);
-        auto t1 = chrono::steady_clock::now();
-        double delta_t = std::chrono::duration<double, std::milli>(t1 - t0).count() * 0.001;
-        cout << "Running time for " << n_epochs << " iterations: " << delta_t << " s." << endl;
-        cout << endl;
+        if (run_fit_sequential)
+        {
+            losses = model.fitSequential(n_epochs, gamma);
+        }
+        else
+        {
+            losses = model.fitParallel(n_epochs, gamma, n_threads);
+        }
+
+        auto fit_t1 = chrono::steady_clock::now();
+        double fit_delta_t = std::chrono::duration<double, std::milli>(fit_t1 - fit_t0).count() * 0.001;
+        cout << "Running time for " << n_epochs << " iterations: " << fit_delta_t << " s.\n\n";
 
         // (3.1) Evaluate model quality on test data
-        VectorXd actual = ratings->rightCols(1);
-        VectorXd predicted = model.predict(ratings->leftCols(2));
+        shared_ptr<MatrixXd> ratings_test = data_mgr->getTest();
+        VectorXd actual = ratings_test->rightCols(1);
+        VectorXd predicted = model.predict(ratings_test->leftCols(2));
+
         double error = Utils::rmse(actual, predicted);
         double baseline_zero = Utils::rmse(actual, 0.0);
         double baseline_avg = Utils::rmse(actual, actual.mean());
@@ -136,17 +151,11 @@ int main(int argc, char **argv)
     }
     else if (task == "recommend")
     {
-        // (1). Load datasets, split to training & test sets
-        Utils::DataManager dm = DataManager();
-        shared_ptr<MatrixXd> ratings = dm.load(input, ratio); // load main dataset
-
-        // (2). Initialize Model object
-        Model::PMF model{ratings, k, std_beta, std_theta, dm.users, dm.items};
-
         // (3). Recommendatations
         // (3.1) Load model from file
         model.load(outdir);
-        ItemMap item_map = dm.loadItemMap(map_input);
+
+        DataManager::ItemMap item_map = data_mgr->loadItemMap(map_input);
 
         if (rec_option == RecOption::user)
         {
