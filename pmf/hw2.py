@@ -20,7 +20,7 @@ ratings_test = ratings[~idx,:]
 
 # 1. fit models on train data
 # KS = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-KS = [2, 3]
+KS = [3]
 models = dict()
 for K in KS:
     print('K:', K)
@@ -69,26 +69,26 @@ for K in KS:
     rmse_yhat = rmse(y_test, y_hat)
     r2_yhat = R2(y_test, y_hat)
 
-    # NS = [10, 50, 100, 500]
-    # top = dict()
-    # for N in NS:
-    #     prec, recall = topN(model, ratings_test, N=N)
-    #     top[N] = (prec, recall)
+    NS = [10, 50, 100, 500]
+    top = dict()
+    for N in NS:
+        prec, recall = topN(model, ratings_test, N=N)
+        top[N] = (prec, recall)
 
     models[K].append(y_hat)  # idx 4
     models[K].append(rmse_yhat)  # idx 5
     models[K].append(r2_yhat)  # idx 6
-    # models[K].append(top)  # idx 7
+    models[K].append(top)  # idx 7
 
     print('K={0}'.format(K))
     print('RMSE(y=0):\t\t', rmse_zero)
     print('RMSE(y=y_bar):\t\t', rmse_ybar)
     print('RMSE(y=y_hat):\t\t', rmse_yhat)
     print('R^2:\t\t', r2_yhat)
-    # for N in NS:
-    #     prec, recall = models[K][7][N]
-    #     print('Top N={} precision:', prec)
-    #     print('Top N={} recall:', recall)
+    for N in NS:
+        prec, recall = models[K][7][N]
+        print('Top N={} precision:', prec)
+        print('Top N={} recall:', recall)
 
 
 # 5. plot rmse performance on test data
