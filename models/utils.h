@@ -4,8 +4,8 @@
 #include <thread>
 #include <utility>
 
-#include <boost/regex.hpp>
 #include <Eigen/Dense>
+#include <boost/regex.hpp>
 
 namespace Utils
 {

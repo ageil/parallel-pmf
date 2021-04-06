@@ -14,7 +14,7 @@ namespace Utils
 
 vector<string> tokenize(string &str, const string delimiter)
 {
-    vector<string> tokenized {};
+    vector<string> tokenized{};
     boost::split(tokenized, str, boost::is_any_of(delimiter), boost::token_compress_on);
 
     return tokenized;

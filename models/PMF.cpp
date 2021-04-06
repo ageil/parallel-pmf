@@ -1,11 +1,11 @@
 #include "PMF.h"
+#include "../csvlib/csv.h"
 #include "ratingsdata.h"
 #include "utils.h"
-#include "../csvlib/csv.h"
 
 #include <algorithm>
-#include <cmath>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <set>
@@ -440,8 +440,7 @@ VectorXi PMF::recommend(int user_id, const int N)
     return top_rec;
 }
 
-vector<string> PMF::recommend(int user_id, unordered_map<int, string> &item_name,
-                                            const int N)
+vector<string> PMF::recommend(int user_id, unordered_map<int, string> &item_name, const int N)
 {
     VectorXi rec = recommend(user_id, N);
     vector<string> rec_names{};
@@ -453,10 +452,10 @@ vector<string> PMF::recommend(int user_id, unordered_map<int, string> &item_name
     return rec_names;
 }
 
-vector<string> PMF::recommendByGenre (string &genre, unordered_map<int, string> &id_name,
-                                 unordered_map<string, unordered_set<int>> genre_ids, const int N)
+vector<string> PMF::recommendByGenre(string &genre, unordered_map<int, string> &id_name,
+                                     unordered_map<string, unordered_set<int>> genre_ids, const int N)
 {
-    vector<string> similar_items {};
+    vector<string> similar_items{};
     if (genre_ids.find(genre) == genre_ids.end())
     {
         cerr << "Didn't find the genre " << genre << " in current dataset..." << endl;
@@ -467,7 +466,7 @@ vector<string> PMF::recommendByGenre (string &genre, unordered_map<int, string> 
     unordered_set<int> id_set = genre_ids[genre];
     default_random_engine generator;
     generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
-    uniform_int_distribution<int> dist(0, id_set.size()-1);
+    uniform_int_distribution<int> dist(0, id_set.size() - 1);
     auto itr = id_set.begin();
     int loc = dist(generator);
     std::advance(itr, loc);
@@ -480,8 +479,8 @@ vector<string> PMF::recommendByGenre (string &genre, unordered_map<int, string> 
 vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id_name, const int N)
 {
     VectorXd beta_item_id = m_beta.at(item_id);
-    vector<double> similarities {};
-    unordered_map<double, int> similarity_id {};
+    vector<double> similarities{};
+    unordered_map<double, int> similarity_id{};
 
     for (auto const &[i, beta_i] : m_beta)
     {
@@ -494,7 +493,7 @@ vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id
     }
 
     // Return N most similar items
-    vector<string> similar_items {};
+    vector<string> similar_items{};
     std::sort(similarities.begin(), similarities.end(), std::greater<>());
     for (int i = 0; i < N; i++)
     {

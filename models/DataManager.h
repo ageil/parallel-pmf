@@ -19,7 +19,7 @@ struct ItemMap
     ItemMap(unordered_map<int, string> in, unordered_map<string, int> ni, unordered_map<int, string> ig,
             unordered_map<string, string> ng, unordered_map<string, unordered_set<int>> gi)
         : id_name(std::move(in)), name_id(std::move(ni)), id_genre(std::move(ig)), name_genre(std::move(ng)),
-        genre_ids(std::move(gi)){};
+          genre_ids(std::move(gi)){};
 
     unordered_map<int, string> id_name;
     unordered_map<string, int> name_id;

@@ -22,7 +22,6 @@ int main(int argc, char **argv)
     // Initialize default values for arguments, path configuration
     string task = "train";
     Model::RecOption rec_option;
-    //= Model::RecOption::user;
 
     string input = "./movielens/ratings.csv";
     string map_input = "./movielens/movies.csv";
@@ -164,7 +163,8 @@ int main(int argc, char **argv)
             {
                 vector<string> rec = model.recommend(user_id, item_map.id_name, 10);
                 cout << "\nTop 10 recommended movies for user " << user_id << " :" << endl << endl;
-                for (auto &title : rec) {
+                for (auto &title : rec)
+                {
                     cout << "Movie: " << title << '\t' << "Genre: " << item_map.name_genre[title] << endl;
                 }
             }
@@ -184,7 +184,8 @@ int main(int argc, char **argv)
             {
                 vector<string> rec = model.getSimilarItems(item_map.name_id[item_name], item_map.id_name, 10);
                 cout << "\nTop 10 similar movies to " << item_name << " :" << endl << endl;
-                for (auto &title : rec) {
+                for (auto &title : rec)
+                {
                     cout << "Movie: " << title << '\t' << "Genre: " << item_map.name_genre[title] << endl;
                 }
             }
@@ -204,7 +205,8 @@ int main(int argc, char **argv)
             {
                 vector<string> rec = model.recommendByGenre(genre, item_map.id_name, item_map.genre_ids, 10);
                 cout << "\n10 recommended movies for genre " << genre << " :" << endl << endl;
-                for (auto &title : rec) {
+                for (auto &title : rec)
+                {
                     cout << "Movie: " << title << '\t' << "Genre: " << item_map.name_genre[title] << endl;
                 }
             }

@@ -136,10 +136,10 @@ void test_cosine()
     c << 1, 0;
     double eps = 1e-5;
 
-    double dist_ac_gt = 0; // cosine_similarity(a,c) = 0 (90 degree)
+    double dist_ac_gt = 0;  // cosine_similarity(a,c) = 0 (90 degree)
     double dist_ab_gt = -1; // cosine_similarity(a,b) = -1 (180 degree)
-    double dist_ac = Utils::cosine(a,c);
-    double dist_ab = Utils::cosine(a,b);
+    double dist_ac = Utils::cosine(a, c);
+    double dist_ab = Utils::cosine(a, b);
 
     cout << dist_ac << ' ' << dist_ab << endl;
 

@@ -9,9 +9,9 @@
 #include <mutex>
 #include <queue>
 #include <random>
-#include <utility>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include <Eigen/Dense>
 
@@ -87,12 +87,11 @@ class PMF
     void load(filesystem::path &indir);
     void save(filesystem::path &outdir);
 
-
     VectorXd predict(const MatrixXd &data);
     VectorXi recommend(int user_id, int N = 10);
     vector<string> recommend(int user_id, unordered_map<int, string> &item_name, int N = 10);
-    vector<string> recommendByGenre (string &genre, unordered_map<int, string> &id_name,
-                                     unordered_map<string, unordered_set<int>> genre_ids, int N = 10);
+    vector<string> recommendByGenre(string &genre, unordered_map<int, string> &id_name,
+                                    unordered_map<string, unordered_set<int>> genre_ids, int N = 10);
     vector<string> getSimilarItems(int &item_id, unordered_map<int, string> &id_name, int N = 10);
     Metrics accuracy(const shared_ptr<MatrixXd> &data, int N = 10);
 };
