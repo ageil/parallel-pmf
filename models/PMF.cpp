@@ -47,6 +47,13 @@ PMF::~PMF()
     m_fit_in_progress = false;
 }
 
+/**
+ * Initialize for each entity the corresponding k-length latent vector in vmap by drawing randomly from dist.
+ * @param dist The distribution from which entry values for the latent vector are randomly drawn
+ * @param entities A vector of entity IDs, either user IDs or item IDs
+ * @param vmap A map connecting each entity ID to its corresponding latent vector
+ * @param k The length of each latent vector
+ */
 void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities, map<int, VectorXd> &vmap, const int k)
 {
     auto rand = [&]() { return dist(d_generator); };
@@ -58,6 +65,13 @@ void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities, 
     }
 }
 
+/**
+ * Compute the log-likelihood of a vector x under a Gaussian distribution with mean loc and standard deviation scale.
+ * @param x A vector of doubles to be evaluated
+ * @param loc The mean of the Gaussian distribution
+ * @param scale The standard deviation of the Gaussian distribution
+ * @return The log-probability of observing x
+ */
 double PMF::logNormPDF(const VectorXd &x, double loc, double scale) const
 {
     VectorXd vloc = VectorXd::Constant(x.size(), loc);
@@ -68,6 +82,13 @@ double PMF::logNormPDF(const VectorXd &x, double loc, double scale) const
     return log_prob;
 }
 
+/**
+ * Compute the log-likelihood of a double x under a Gaussian distribution with mean loc and standard deviation scale.
+ * @param x A point double to be evaluated
+ * @param loc The mean of the Gaussian distribution
+ * @param scale The standard deviation of the Gaussian distribution
+ * @return The log-probability of observing x
+ */
 double PMF::logNormPDF(double x, double loc, double scale) const
 {
     double diff = x - loc;
@@ -77,6 +98,13 @@ double PMF::logNormPDF(double x, double loc, double scale) const
     return log_prob;
 }
 
+/**
+ * Extract a subset of a data batch where the value in column is ID.
+ * @param batch Reference to a batch of data
+ * @param ID The ID of a user or item to be extracted
+ * @param column Index of either the user or item column in which ID is located
+ * @return A matrix of rows where values in column are all ID
+ */
 MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
 {
     VectorXi is_id = (batch.col(column).array() == ID).cast<int>(); // which rows have ID in col?
@@ -95,6 +123,11 @@ MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
     return submatrix;
 }
 
+/**
+ * Compute the log-likelihood of the data under the model (assuming only Gaussian distributions).
+ * @param theta Map of user IDs to user preference vectors
+ * @param beta Map of item IDs to item attribute vectors
+ */
 void PMF::computeLoss(const map<int, VectorXd> &theta, const map<int, VectorXd> &beta)
 {
     double loss = 0;
@@ -164,6 +197,11 @@ void PMF::computeLossFromQueue()
     cout << "[computeLossFromQueue] Loss computation thread completed.\n\n";
 }
 
+/**
+ * Compute gradient updates of each user in a batch of data, and apply the update to the corresponding theta vectors.
+ * @param batch Reference to a batch of training data containing columns for user IDs, item IDs, and ratings (in order)
+ * @param learning_rate Learning rate to be used in the gradient ascent procedure
+ */
 void PMF::fitUsers(const Ref<MatrixXd> &batch, const double learning_rate)
 {
     MatrixXd users = batch.col(col_value(Cols::user));
@@ -193,6 +231,11 @@ void PMF::fitUsers(const Ref<MatrixXd> &batch, const double learning_rate)
     }
 }
 
+/**
+ * Compute gradient updates of each item in a batch of data, and apply the update to the corresponding beta vectors.
+ * @param batch Reference to a batch of training data containing columns for user IDs, item IDs, and ratings (in order)
+ * @param learning_rate Learning rate to be used in the gradient ascent procedure
+ */
 void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
 {
     MatrixXd items = batch.col(col_value(Cols::item));
@@ -221,6 +264,12 @@ void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
     }
 }
 
+/**
+ * Fit the latent beta and theta vectors to the training dataset sequentially.
+ * @param epochs Number of times the training dataset is passed over in order to compute gradient updates
+ * @param gamma Learning rate to be used in the gradient ascent procedure
+ * @return A vector of log-likelihoods of the data under the model for each epoch
+ */
 vector<double> PMF::fitSequential(const int epochs, const double gamma)
 {
     cout << "Running fit (sequential) on main thread." << endl << endl;
@@ -242,10 +291,10 @@ vector<double> PMF::fitSequential(const int epochs, const double gamma)
 }
 
 /**
- * Fit the latent beta and theta vectors to the training dataset.
- * @param epochs Number of times the training dataset is passed over to compute gradient updates
- * @param gamma Learning rate used in the gradient ascent procedure
- * @param n_threads Number of threads the training dataset is distributed over
+ * Fit the latent beta and theta vectors to the training dataset in parallel over multiple threads.
+ * @param epochs Number of times the training dataset is passed over in order to compute gradient updates
+ * @param gamma Learning rate to be used in the gradient ascent procedure
+ * @param n_threads Number of threads the training dataset to distribute the dataset over
  * @return A vector of log-likelihoods of the data under the model for each epoch
  */
 vector<double> PMF::fitParallel(const int epochs, const double gamma, const int n_threads)
@@ -391,9 +440,11 @@ void PMF::save(filesystem::path &outdir)
     beta_file.close();
 }
 
-// Predict ratings using learnt theta and beta vectors in model
-// Input: data matrix with n rows and 2 columns (user, item)
-// Returns a vector of predicted ratings for each user and item
+/**
+ * Predict ratings using learnt theta and beta vectors in model.
+ * @param data A 2-column matrix with the first column denoting user IDs and the second column denoting item IDs
+ * @return A vector of predicted ratings for each pair of user and item IDs
+ */
 VectorXd PMF::predict(const MatrixXd &data) const
 {
     Expects(data.cols() == 2);
@@ -414,6 +465,12 @@ VectorXd PMF::predict(const MatrixXd &data) const
     return predictions;
 }
 
+/**
+ * Generate a vector of top N most recommended items for user with ID user_id.
+ * @param user_id User ID of the user to generate item recommendations
+ * @param N Number of item recommendations to generate
+ * @return A list of recommended items sorted from most to least recommended
+ */
 VectorXi PMF::recommend(const int user_id, const int N) const
 {
     vector<double> vi_items{};
