@@ -241,6 +241,13 @@ vector<double> PMF::fitSequential(const int epochs, const double gamma)
     return m_losses;
 }
 
+/**
+ * Fit the latent beta and theta vectors to the training dataset.
+ * @param epochs Number of times the training dataset is passed over to compute gradient updates
+ * @param gamma Learning rate used in the gradient ascent procedure
+ * @param n_threads Number of threads the training dataset is distributed over
+ * @return A vector of log-likelihoods of the data under the model for each epoch
+ */
 vector<double> PMF::fitParallel(const int epochs, const double gamma, const int n_threads)
 {
     const int max_rows = m_training_data->rows();
