@@ -1,5 +1,7 @@
 #!/bin/bash
+
 cd ..
+
 ./main.tsk \
 	--task train \
 	-i ./movielens/ratings.csv \
