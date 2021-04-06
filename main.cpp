@@ -20,7 +20,6 @@ int main(int argc, char **argv)
     // Initialize default values for arguments, path configuration
     string task = "train";
     Model::RecOption rec_option;
-    //= Model::RecOption::user;
 
     string input = "./movielens/ratings.csv";
     string map_input = "./movielens/movies.csv";

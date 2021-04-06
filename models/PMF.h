@@ -116,7 +116,7 @@ class PMF
     // This method will divide the ratings data by the given n_thread number of batches.
     // Returns the vector of loss computations computed for every 10 epochs.
     vector<double> fitParallel(const int epochs, const double gamma, const int n_threads);
-    
+
     void load(filesystem::path &indir);
     void save(filesystem::path &outdir);
 
