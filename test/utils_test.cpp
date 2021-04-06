@@ -9,6 +9,22 @@
 using namespace std;
 using namespace Eigen;
 
+void test_tokenize()
+{
+    cout << "Testing tokenize..." << endl;
+    string s1 = "0.1 0.2 0.3 -0.4  -0.5";
+    string s2 = "A|B|C|D";
+    string s3 = "A B C D";
+
+    vector<string> vi1_gt = {"0.1", "0.2", "0.3", "-0.4", "-0.5"};
+    vector<string> vi1 = Utils::tokenize(s1);
+    vector<string> vi2_gt = {"A", "B", "C", "D"};
+    vector<string> vi2 = Utils::tokenize(s2, "|");
+
+    Expects(std::equal(vi1_gt.begin(), vi1_gt.end(), vi1.begin()) && vi1_gt.size() == vi1.size());
+    Expects(std::equal(vi2_gt.begin(), vi2_gt.end(), vi2.begin()) && vi2_gt.size() == vi2.size());
+}
+
 void test_nonNegativeIdxs()
 {
     cout << "Testing nonNegativeIdxs..." << endl;
@@ -109,16 +125,39 @@ void test_r2()
     Expects(abs(r2_baseline - 0.0) <= eps && abs(r2_perfect - 1.0) <= eps);
 }
 
+void test_cosine()
+{
+    cout << "Testing cosineDistance..." << endl;
+    VectorXd a(2);
+    VectorXd b(2);
+    VectorXd c(2);
+    a << 0, 1;
+    b << 0, -1;
+    c << 1, 0;
+    double eps = 1e-5;
+
+    double dist_ac_gt = 0; // cosine_similarity(a,c) = 0 (90 degree)
+    double dist_ab_gt = -1; // cosine_similarity(a,b) = -1 (180 degree)
+    double dist_ac = Utils::cosine(a,c);
+    double dist_ab = Utils::cosine(a,b);
+
+    cout << dist_ac << ' ' << dist_ab << endl;
+
+    Expects(abs(dist_ac_gt - dist_ac) <= eps && abs(dist_ab_gt - dist_ab) <= eps);
+}
+
 int main()
 {
     cout << "Unit test for utility functions:" << endl;
     cout << "-----------------------------------------" << endl;
+    test_tokenize();
     test_nonNegativeIdxs();
     test_countIntersect();
     test_getUnique();
     test_argsort();
     test_rmse();
     test_r2();
+    test_cosine();
     cout << "Unit test for utility functions completed" << endl;
     cout << "-----------------------------------------" << endl;
 

@@ -3,12 +3,14 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <random>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include <Eigen/Dense>
@@ -41,6 +43,19 @@ struct Metrics
     double recall;
 };
 
+enum class RecOption
+{
+    user = 0,
+    item = 1,
+    genre = 2
+};
+
+enum class LatentVar
+{
+    theta = 0,
+    beta = 1
+};
+
 class PMF
 {
   private:
@@ -62,6 +77,8 @@ class PMF
     // Computes loss from the theta and beta snapshots found in the
     // m_loss_queue queue.
     void computeLossFromQueue();
+
+    void loadModel(filesystem::path &indir, LatentVar option);
 
     // Fit user preference vectors to sample data in batch.
     void fitUsers(const Ref<MatrixXd> &batch, const double learning_rate);
@@ -99,6 +116,9 @@ class PMF
     // This method will divide the ratings data by the given n_thread number of batches.
     // Returns the vector of loss computations computed for every 10 epochs.
     vector<double> fitParallel(const int epochs, const double gamma, const int n_threads);
+    
+    void load(filesystem::path &indir);
+    void save(filesystem::path &outdir);
 
     // Predict ratings using learnt theta and beta vectors in model.
     // Input: data matrix with n rows and 2 columns (user, item).
@@ -106,12 +126,15 @@ class PMF
     VectorXd predict(const MatrixXd &data) const;
 
     // Returns item names of top N items recommended for given user_id based on fitted data
-    vector<pair<string, string>> recommend(const int user_id, const unordered_map<int, pair<string, string>> &item_map,
-                                           const int N = 10) const;
+    vector<string> recommend(const int user_id, const unordered_map<int, string> &item_name, const int N = 10) const;
 
     // Return the precision & recall of the top N predicted items for each user in
     // the give dataset.
     Metrics accuracy(const shared_ptr<MatrixXd> &data, const int N) const;
+
+    vector<string> recommendByGenre(string &genre, unordered_map<int, string> &id_name,
+                                    unordered_map<string, unordered_set<int>> genre_ids, int N = 10);
+    vector<string> getSimilarItems(int &item_id, unordered_map<int, string> &id_name, int N = 10);
 };
 } // namespace Model
 

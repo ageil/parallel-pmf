@@ -1,9 +1,11 @@
 #ifndef FINAL_PROJECT_UTILS_H
 #define FINAL_PROJECT_UTILS_H
 
-#include <Eigen/Dense>
 #include <thread>
 #include <utility>
+
+#include <boost/regex.hpp>
+#include <Eigen/Dense>
 
 namespace Utils
 {
@@ -16,6 +18,11 @@ enum class Order
     ascend = 0,
     descend = 1
 };
+
+// Tokenize string delimited by space to vector of double
+// Reference:
+// https://www.boost.org/doc/libs/1_75_0/doc/html/string_algo/usage.html
+vector<string> tokenize(string &s, string delimiter = " ");
 
 // Get all vector indices with non-negative values
 vector<int> nonNegativeIdxs(const VectorXd &x);
@@ -41,6 +48,9 @@ double rmse(const VectorXd &y, const VectorXd &y_hat);
 // Get coefficient of determination between ground-truth (y) and predictions
 // (y_hat)
 double r2(const VectorXd &y, const VectorXd &y_hat);
+
+// Calculate cosine similarity between two vectors
+double cosine(const VectorXd &v1, const VectorXd &v2);
 
 struct guarded_thread : std::thread
 {

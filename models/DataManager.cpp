@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <random>
 #include <set>
@@ -10,7 +11,6 @@
 namespace DataManager
 {
 
-namespace fs = boost::filesystem;
 using namespace std;
 
 namespace
@@ -64,7 +64,7 @@ unsigned long int getLineNumber(const string &file_name)
 // Returns matrix of centralized and shuffled data loaded from given input_filepath csv
 MatrixXd load(const string &input_filepath)
 {
-    if (!fs::exists(input_filepath))
+    if (!filesystem::exists(input_filepath))
     {
         cerr << "Can't find the given input_filepath file: " << input_filepath << endl;
         exit(1);
@@ -130,9 +130,9 @@ shared_ptr<MatrixXd> DataManager::getTest() const
     return m_data_test;
 }
 
-unordered_map<int, pair<string, string>> DataManager::loadItemNames(const string &input) const
+ItemMap DataManager::loadItemMap(const string &input)
 {
-    if (!fs::exists(input))
+    if (!filesystem::exists(input))
     {
         cerr << "Can't find the given input file: " << input << endl;
         exit(1);
@@ -140,17 +140,36 @@ unordered_map<int, pair<string, string>> DataManager::loadItemNames(const string
 
     io::CSVReader<3> in(input);
     in.read_header(io::ignore_extra_column, "movieId", "title", "genres");
-    int movie_id;
+    int id;
     string title;
     string genre;
-    unordered_map<int, pair<string, string>> id_name;
+    unordered_map<int, string> id_name;
+    unordered_map<string, int> name_id;
+    unordered_map<int, string> id_genre;
+    unordered_map<string, string> name_genre;
+    unordered_map<string, unordered_set<int>> genre_ids;
 
-    while (in.read_row(movie_id, title, genre))
+    while (in.read_row(id, title, genre))
     {
-        id_name[movie_id] = pair<string, string>(title, genre);
+        id_name[id] = title;
+        name_id[title] = id;
+        id_genre[id] = genre;
+        name_genre[title] = genre;
+        string first_genre = Utils::tokenize(genre, "|")[0];
+        if (genre_ids.find(first_genre) == genre_ids.end())
+        {
+            unordered_set<int> id_set(id);
+            genre_ids[genre] = id_set;
+        }
+        else
+        {
+            genre_ids[genre].insert(id);
+        }
     }
 
-    return id_name;
+    ItemMap item_map = ItemMap(id_name, name_id, id_genre, name_genre, genre_ids);
+
+    return item_map;
 }
 
 } // namespace DataManager

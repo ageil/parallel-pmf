@@ -5,6 +5,8 @@
 #include <memory>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 
 #include "../csvlib/csv.h"
 
@@ -15,6 +17,23 @@ using namespace Eigen;
 
 using TrainingData = shared_ptr<MatrixXd>;
 using TestingData = shared_ptr<MatrixXd>;
+
+struct ItemMap
+{
+    ItemMap(unordered_map<int, string> in, unordered_map<string, int> ni, unordered_map<int, string> ig,
+            unordered_map<string, string> ng, unordered_map<string, unordered_set<int>> gi)
+        : id_name(std::move(in))
+        , name_id(std::move(ni))
+        , id_genre(std::move(ig))
+        , name_genre(std::move(ng))
+        , genre_ids(std::move(gi)){};
+
+    unordered_map<int, string> id_name;
+    unordered_map<string, int> name_id;
+    unordered_map<int, string> id_genre;
+    unordered_map<string, string> name_genre;
+    unordered_map<string, unordered_set<int>> genre_ids;
+};
 
 class DataManager
 {
@@ -35,7 +54,7 @@ class DataManager
     shared_ptr<MatrixXd> getTrain() const;
     shared_ptr<MatrixXd> getTest() const;
 
-    unordered_map<int, pair<string, string>> loadItemNames(const string &input) const;
+    ItemMap loadItemMap(const string &input);
 };
 
 } // namespace DataManager
