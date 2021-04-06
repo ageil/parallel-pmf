@@ -1,6 +1,6 @@
 # A parallel implementation of Probabilistic Matrix Factorization in C++
 
-##About
+## About
 Brief introduction of Probablistic Matrix Factorization...
 
 ## Requirement & Prequisite libraries
@@ -21,7 +21,7 @@ make test
 ```
 
 ## Running options
-```bash
+```
 Parameters for Probabilistic Matrix Factorization (PMF):
   -h [ --help ]             Help
   -i [ --input ] arg        Input file name
