@@ -135,17 +135,6 @@ int main(int argc, char **argv)
         cout << "RMSE(mean): " << baseline_avg << endl;
         cout << "RMSE(pred): " << error << endl;
 
-        // precision & recall of the top N items recommended for each user [Not in use]
-        /*
-        vector<int> vec_N {10, 50, 100, 500};
-        for (auto &N : vec_N)
-        {
-            Metrics acc = model.accuracy(ratings_train, N);
-            cout << "Metrics(pred) for top " << N << " recommended items for each user\n"
-                 << "Precision: " << acc.precision << " Recall: " << acc.recall << endl;
-        }
-         */
-
         // (3.2) save loss & trained parameters to file
         model.save(outdir);
     }
@@ -159,7 +148,7 @@ int main(int argc, char **argv)
 
         if (rec_option == RecOption::user)
         {
-            // (3.2-1) recommend user
+            // (3.2-1) recommend to user
             cout << "Please specify user id: " << endl;
             int user_id;
             cin >> user_id;
