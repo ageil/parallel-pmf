@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     int n_epochs = 200;  // default # of iterations
     double gamma = 0.01; // default learning rate for gradient descent
     double ratio = 0.7;  // train-test split ratio
-    int n_threads = 50;
+    int n_threads = 20;
 
     double std_theta = 1.0;
     double std_beta = 1.0;

@@ -10,6 +10,4 @@ cd ..
 	-m movielens/movies.csv \
 	$option
 
-
-
 	
