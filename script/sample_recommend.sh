@@ -1,6 +1,6 @@
 #/bin/bash
 
-option=$1
+option=$1 # options: user; item; genre
 
 cd ..
 
