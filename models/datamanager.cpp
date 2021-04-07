@@ -17,7 +17,7 @@ namespace
 {
 
 /**
- * Centralizes the given data matrix to mean = median ratings
+ * Centralizes the given data matrix to mean ratings = 0
  * @param data The matrix to centralize.
  */
 void centralize(MatrixXd &data)
