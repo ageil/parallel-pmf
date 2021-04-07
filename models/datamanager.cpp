@@ -6,8 +6,6 @@
 #include "datamanager.h"
 #include "utils.h"
 
-#include <boost/filesystem.hpp>
-
 namespace DataManager
 {
 
@@ -17,10 +15,10 @@ namespace
 {
 
 /**
- * Centralizes the given data matrix to mean = median ratings
- * @param data The matrix to centralize.
+ * Centers the ratings in the given data matrix such that the midpoint of the rating scale is zero.
+ * @param data The matrix to center.
  */
-void centralize(MatrixXd &data)
+void zeroCenter(MatrixXd &data)
 {
     set<double> unique_vals{data.col(2).data(), data.col(2).data() + data.col(2).size()};
 
@@ -40,8 +38,8 @@ void centralize(MatrixXd &data)
 }
 
 /**
- * Randomly shuffles the given data matrix linearly spaced.
- * @param data The matrix to shuffle.
+ * Randomly shuffles the rows of the given data matrix linearly spaced.
+ * @param data The matrix to shuffle the rows of.
  */
 void shuffle(MatrixXd &data)
 {
@@ -51,7 +49,7 @@ void shuffle(MatrixXd &data)
 }
 
 /**
- * Count the total number of lines for the input file
+ * Count the total number of lines for the input file.
  * @param file_name Input file name
  * @return Number of lines of the file
  */
@@ -71,9 +69,8 @@ unsigned long int getLineNumber(const string &file_name)
     return count;
 }
 
-// Returns matrix of centralized and shuffled data loaded from given input_filepath csv
 /**
- * Load the matrix from file and perform preprocessing (random shuffling, centralize)
+ * Load the matrix from file and perform preprocessing steps (shuffling rows, zero-centering ratings).
  * @param input_filepath Input file name
  * @return Matrix of the input dataset (dimension: N x 3)
  */
@@ -108,7 +105,7 @@ MatrixXd load(const string &input_filepath)
         row_idx++;
     }
 
-    centralize(data);
+    zeroCenter(data);
     shuffle(data);
 
     return data;
@@ -117,7 +114,7 @@ MatrixXd load(const string &input_filepath)
 } // namespace
 
 /**
- * Initialize DataManager by loading the csv file found in the given input. The data is centralized, shuffled, and
+ * Initialize DataManager by loading the csv file found in the given input. The data is zero-centered, shuffled, and
  * stored. Additionally, the given ratio will determine how to split the processed data into training data vs. testing
  * data. (e.g. ratio=0.7 will split to 70% train, 30% test)
  * @param input A file path to the csv file of data to load.
@@ -135,9 +132,9 @@ DataManager::DataManager(const string &input, const double ratio)
 }
 
 /**
- * Splits m_data by the given ratio (e.g. ratio=0.7 will split to 70% train, 30% test)
+ * Splits the m_data rows into a train and test set by ratio (e.g. ratio=0.7 will split to 70% train, 30% test)
  * @param ratio The ratio to split the data into training data vs. testing data.
- * @return A tuple of <MatrixXd, MatrixXd> type, in which the first matrix if the training data and the second matrix is
+ * @return A tuple of <MatrixXd, MatrixXd> type, in which the first matrix is the training data and the second matrix is
  * the testing data.
  */
 tuple<TrainingData, TestingData> DataManager::split(const double ratio)
