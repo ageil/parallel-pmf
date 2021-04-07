@@ -50,7 +50,7 @@ Parameters for Probabilistic Matrix Factorization (PMF):
 ```
 
 ## Quick start
-Please refer to the sample running scripts [here](script/)
+Please refer to the sample running scripts for [training](script/sample_train.sh) and [recommendation](script/sample_recommend.sh)
 
 ## References
 - Mnih, A., & Salakhutdinov, R. R. (2007). Probabilistic matrix factorization. *Advances in neural information processing systems*, *20*, 1257-1264
