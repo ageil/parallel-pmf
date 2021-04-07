@@ -17,7 +17,7 @@ namespace
 {
 
 /**
- *  Centralizes the given data matrix to mean = median ratings
+ * Centralizes the given data matrix to mean = median ratings
  * @param data The matrix to centralize.
  */
 void centralize(MatrixXd &data)
@@ -40,7 +40,7 @@ void centralize(MatrixXd &data)
 }
 
 /**
- *  Randomly shuffles the given data matrix linearly spaced.
+ * Randomly shuffles the given data matrix linearly spaced.
  * @param data The matrix to shuffle.
  */
 void shuffle(MatrixXd &data)
@@ -50,7 +50,11 @@ void shuffle(MatrixXd &data)
     data = ind.asPermutation() * data;
 }
 
-// Count total line number of the input file
+/**
+ * Count the total number of lines for the input file
+ * @param file_name Input file name
+ * @return Number of lines of the file
+ */
 unsigned long int getLineNumber(const string &file_name)
 {
     io::CSVReader<3> in(file_name);
@@ -68,6 +72,11 @@ unsigned long int getLineNumber(const string &file_name)
 }
 
 // Returns matrix of centralized and shuffled data loaded from given input_filepath csv
+/**
+ * Load the matrix from file and perform preprocessing (random shuffling, centralize)
+ * @param input_filepath Input file name
+ * @return Matrix of the input dataset (dimension: N x 3)
+ */
 MatrixXd load(const string &input_filepath)
 {
     if (!filesystem::exists(input_filepath))
@@ -157,6 +166,13 @@ shared_ptr<MatrixXd> DataManager::getTest() const
     return m_data_test;
 }
 
+/**
+ * Load the mappings between items' ID (integer), titles (string), and genres (string)
+ * @param input Input file name
+ * @return Struct of multiple Maps between ID, titles & genres:
+ * ItemMap.id_name - ID->title, ItemMap.name_id - title->ID, ItemMap.id_genre - ID->genre, ItemMap.name_genre -
+ * title->genre, Item.genre_ids - genre->Set of IDs of the given genre
+ */
 ItemMap DataManager::loadItemMap(const string &input)
 {
     if (!filesystem::exists(input))

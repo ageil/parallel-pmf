@@ -126,7 +126,7 @@ class PMF
     void load(filesystem::path &indir);
     void save(filesystem::path &outdir);
 
-    // Predict ratings using learnt theta and beta vectors in model.
+    // Predicts ratings using learnt theta and beta vectors in model.
     // Input: data matrix with n rows and 2 columns (user, item).
     // Returns a vector of predicted ratings for each user and item.
     VectorXd predict(const MatrixXd &data) const;
@@ -134,12 +134,15 @@ class PMF
     // Returns item names of top N items recommended for given user_id based on fitted data
     vector<string> recommend(const int user_id, const unordered_map<int, string> &item_name, const int N = 10) const;
 
-    // Return the precision & recall of the top N predicted items for each user in
+    // Returns the precision & recall of the top N predicted items for each user in
     // the give dataset.
     Metrics accuracy(const shared_ptr<MatrixXd> &data, const int N) const;
 
+    // Returns the top N relevant items given a random item sampled from its input genre category
     vector<string> recommendByGenre(string &genre, unordered_map<int, string> &id_name,
                                     unordered_map<string, unordered_set<int>> genre_ids, int N = 10);
+
+    // Returns the top N similar items given the input item name
     vector<string> getSimilarItems(int &item_id, unordered_map<int, string> &id_name, int N = 10);
 };
 } // namespace Model

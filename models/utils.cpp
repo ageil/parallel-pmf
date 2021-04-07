@@ -12,6 +12,12 @@
 namespace Utils
 {
 
+/**
+ * Tokenize (split) a string into vector of compoments delimited by the same separater (e.g. comma, tab, etc.)
+ * @param str Input string to be splitted
+ * @param delimiter Separator character
+ * @return Vector of tokenized strings
+ */
 vector<string> tokenize(string &str, const string delimiter)
 {
     vector<string> tokenized{};
@@ -20,6 +26,11 @@ vector<string> tokenize(string &str, const string delimiter)
     return tokenized;
 }
 
+/**
+ * Return vector of non-negative indices from the given vector
+ * @param x Vector of doubles
+ * @return Indices of non-negative indices of the given vector
+ */
 vector<int> nonNegativeIdxs(const VectorXd &x)
 {
     vector<int> indices{};
@@ -34,6 +45,12 @@ vector<int> nonNegativeIdxs(const VectorXd &x)
     return indices;
 }
 
+/**
+ * Count number of intersect items between two input vectors
+ * @param x Vector of integers (Eigen object)
+ * @param y Vector of integers (Eigen object)
+ * @return Number of common items between vectors x & y
+ */
 int countIntersect(const VectorXi &x, const VectorXi &y)
 {
     vector<int> vi_x(x.size());
@@ -47,6 +64,12 @@ int countIntersect(const VectorXi &x, const VectorXi &y)
     return intersect.size();
 }
 
+/**
+ * Return the indices that would sort the input vector
+ * @param x Input vector of doubles (Eigen object)
+ * @param option Sorting option: (Order::ascend or Order::descend)
+ * @return Vector of indices represent the sorted order of the input vector
+ */
 VectorXi argsort(const VectorXd &x, const Order option)
 {
     Expects(option == Order::ascend or option == Order::descend);
@@ -72,6 +95,12 @@ VectorXi argsort(const VectorXd &x, const Order option)
     return indices_sorted;
 }
 
+/**
+ * Return the unique items in a given column of the input matrix
+ * @param mat Pointer of the input matrix
+ * @param col_idx Column index of the matrix to calculate unique items
+ * @return vector of unique items from the given column of the input matrix
+ */
 vector<int> getUnique(const shared_ptr<MatrixXd> &mat, int col_idx)
 {
     const MatrixXd &col = mat->col(col_idx);
@@ -81,6 +110,12 @@ vector<int> getUnique(const shared_ptr<MatrixXd> &mat, int col_idx)
     return unique;
 }
 
+/**
+ * Calculate root-mean-squared error (RMSE) between a vector and an integer representing the constant prediction
+ * @param y Ground-truth vector
+ * @param y_hat Integer that represent a vector of constant predictions
+ * @return sqrt( ∑_i(y_i - y_hat_i)^2 / size(y))
+ */
 double rmse(const VectorXd &y, const double y_hat)
 {
     const auto denominator = y.size();
@@ -93,6 +128,12 @@ double rmse(const VectorXd &y, const double y_hat)
     return sqrt(c * summed);
 }
 
+/**
+ * Calculate root-mean-squared error (RMSE) between two vectors
+ * @param y Ground-truth vector
+ * @param y_hat Prediction vector
+ * @return Rsqrt( ∑_i(y_i - y_hat_i)^2 / size(y))
+ */
 double rmse(const VectorXd &y, const VectorXd &y_hat)
 {
     Expects(y.size() > 0);
@@ -105,6 +146,12 @@ double rmse(const VectorXd &y, const VectorXd &y_hat)
     return sqrt(ms_error);
 }
 
+/**
+ * Calculate Coefficient of determination between two vectors
+ * @param y Ground-truth vector
+ * @param y_hat Prediction vector
+ * @return  Coefficient of determination between y & y_hat
+ */
 double r2(const VectorXd &y, const VectorXd &y_hat)
 {
     VectorXd y_mean(y.size());
@@ -114,6 +161,12 @@ double r2(const VectorXd &y, const VectorXd &y_hat)
     return 1 - (SSE / TSS);
 }
 
+/**
+ * Calculate cosine similarity between two vectors
+ * @param v1 Vector 1
+ * @param v2 Vector 2
+ * @return cosine(y1, y2) = (y1 dot y2) / (||y1|| * ||y2||)
+ */
 double cosine(const VectorXd &v1, const VectorXd &v2)
 {
     Expects(v1.size() == v2.size());

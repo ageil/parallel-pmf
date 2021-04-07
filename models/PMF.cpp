@@ -364,6 +364,10 @@ vector<double> PMF::fitParallel(const int epochs, const double gamma, const int 
     return m_losses;
 }
 
+/**
+ * Load previously learnt latent theta & beta vectors from file
+ * @param indir Parent directory to files containing theta & beta vectors
+ */
 void PMF::load(filesystem::path &indir)
 {
     cout << "Loading previously learnt parameters into model..." << endl;
@@ -380,6 +384,11 @@ void PMF::load(filesystem::path &indir)
     loadModel(beta_fname, LatentVar::beta);
 }
 
+/**
+ * Helper function to load theta & becta vectors from file
+ * @param indir Parent directory to files containing theta & beta vectors
+ * @param option Specify which latent variable to load (LatentVar::theta or LatentVar::beta)
+ */
 void PMF::loadModel(filesystem::path &indir, LatentVar option)
 {
     io::CSVReader<2> in(indir);
@@ -406,6 +415,10 @@ void PMF::loadModel(filesystem::path &indir, LatentVar option)
     }
 }
 
+/**
+ * Save learnt latent theta & beta vectors to file
+ * @param outdir Parent directory to files to save theta & beta vectors
+ */
 void PMF::save(filesystem::path &outdir)
 {
     if (!filesystem::exists(outdir))
@@ -477,7 +490,7 @@ VectorXd PMF::predict(const MatrixXd &data) const
  * Generate a vector of top N most recommended items for user with ID user_id.
  * @param user_id User ID of the user to generate item recommendations
  * @param N Number of item recommendations to generate
- * @return A list of recommended items sorted from most to least recommended
+ * @return A list of recommended item IDs sorted from most to least recommended
  */
 VectorXi PMF::recommend(const int user_id, const int N) const
 {
@@ -510,6 +523,13 @@ VectorXi PMF::recommend(const int user_id, const int N) const
     return top_rec;
 }
 
+/**
+ * Generate a vector of top N most recommended items with actual titles for user with ID user_id.
+ * @param user_id User ID of the user to generate item recommendations
+ * @param item_name Hashmap of of item ID (int) to their item title (string)
+ * @param N Number of item recommendations to generate
+ * @return A list of recommended items names sorted from most to least recommended
+ */
 vector<string> PMF::recommend(const int user_id, const unordered_map<int, string> &item_name, const int N) const
 {
     // Get top N item recommendations for user
@@ -524,6 +544,14 @@ vector<string> PMF::recommend(const int user_id, const unordered_map<int, string
     return rec_names;
 }
 
+/**
+ * Generate a vector of random 10 recommended items from the input genre
+ * @param genre Category for the recommended items
+ * @param id_name Map of of item ID (int) to their item title (string)
+ * @param genre_ids Map of genre name (string) to the full set of items within such genre (HashSet)
+ * @param N Number of item recommendations to generate
+ * @return A list of random recommended items given the input genre
+ */
 vector<string> PMF::recommendByGenre(string &genre, unordered_map<int, string> &id_name,
                                      unordered_map<string, unordered_set<int>> genre_ids, const int N)
 {
@@ -548,6 +576,13 @@ vector<string> PMF::recommendByGenre(string &genre, unordered_map<int, string> &
     return getSimilarItems(rand_id, id_name, N);
 }
 
+/**
+ * Generate a vector of top N most similar items to the input item with Item ID
+ * @param item_id Item ID of the item to generate item recommendations
+ * @param id_name Map of of item ID (int) to their item title (string)
+ * @param N Number of item recommendations to generate
+ * @return A list of recommended items names sorted from the most to least similar to the input item
+ */
 vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id_name, const int N)
 {
     VectorXd beta_item_id = m_beta.at(item_id);
@@ -578,6 +613,12 @@ vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id
 
 // Return the precision & recall of the top N predicted items for each user in
 // the give dataset
+/**
+ * Return the accuracy metrics of the top N predicted items for each user with their actual likes
+ * @param data A 3-column matrix with Col.1 - user IDs, Col.2 - item IDs & Col.3 - user's rating to item
+ * @param N Number of the top predicted recommendations (items) compare with
+ * @return Struct of {precision, recall} representing how frequency recommendations hit the actual users' likes
+ */
 Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N) const
 {
     double num_likes_total = 0;
