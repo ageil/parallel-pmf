@@ -141,8 +141,6 @@ void test_cosine()
     double dist_ac = Utils::cosine(a, c);
     double dist_ab = Utils::cosine(a, b);
 
-    cout << dist_ac << ' ' << dist_ab << endl;
-
     Expects(abs(dist_ac_gt - dist_ac) <= eps && abs(dist_ab_gt - dist_ab) <= eps);
 }
 

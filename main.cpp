@@ -209,7 +209,7 @@ int main(int argc, char **argv)
             else
             {
                 vector<string> rec = model.recommendByGenre(genre, item_map.id_name, item_map.genre_ids, 10);
-                cout << "\n10 recommended movies for genre " << genre << " :" << endl << endl;
+                cout << "\n10 random recommended movies for genre " << genre << " :" << endl << endl;
                 for (auto &title : rec)
                 {
                     cout << "Movie: " << title << '\t' << "Genre: " << item_map.name_genre[title] << endl;

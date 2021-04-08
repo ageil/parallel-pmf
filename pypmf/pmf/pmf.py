@@ -21,8 +21,8 @@ class PMF(object):
         self.task = task
 
         # model parameters
-        self.theta = pd.DataFrame()  # pd.DataFrame of user_id -> k-dimensional latent attribute
-        self.beta = pd.DataFrame() # pd.DataFrame of user_id -> k-dimensional latent attribute
+        self.theta = pd.DataFrame()  # dimension: user_id x k-dimensional theta latent attribute
+        self.beta = pd.DataFrame() # dimension: user_id x k-dimensional beta latent attribute
         self.users = set()
         self.items = set()
         self.genres = set()
