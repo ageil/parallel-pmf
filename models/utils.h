@@ -41,6 +41,8 @@ double r2(const VectorXd &y, const VectorXd &y_hat);
 
 double cosine(const VectorXd &v1, const VectorXd &v2);
 
+// Reference:
+// guarded_thread from Prof. Stroustrup's "Concurrency and Parallelism" lecture - slide 37.
 struct guarded_thread : std::thread
 {
     using std::thread::thread;
