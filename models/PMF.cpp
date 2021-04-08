@@ -55,7 +55,7 @@ PMF::~PMF()
  * @param vmap A map connecting each entity ID to its corresponding latent vector
  * @param k The length of each latent vector
  */
-void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities, map<int, VectorXd> &vmap, const int k)
+void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities, LatentVectors &vmap, const int k)
 {
     auto rand = [&]() { return dist(d_generator); };
     for (int elem : entities)
@@ -129,7 +129,7 @@ MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
  * @param theta Map of user IDs to user preference vectors
  * @param beta Map of item IDs to item attribute vectors
  */
-void PMF::computeLoss(const map<int, VectorXd> &theta, const map<int, VectorXd> &beta)
+void PMF::computeLoss(const LatentVectors &theta, const LatentVectors &beta)
 {
     double loss = 0;
 

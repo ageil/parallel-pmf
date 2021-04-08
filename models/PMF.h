@@ -27,6 +27,8 @@ namespace Model
 using namespace std;
 using namespace Eigen;
 
+using LatentVectors = map<int, VectorXd>;
+
 /**
  * Stores a 'snapshot' of the given theta and beta inputs by copying the inputs and storeing them in theta and beta
  * member variables.
@@ -35,12 +37,12 @@ using namespace Eigen;
  */
 struct ThetaBetaSnapshot
 {
-    ThetaBetaSnapshot(const map<int, VectorXd> theta, const map<int, VectorXd> beta)
+    ThetaBetaSnapshot(const LatentVectors theta, const LatentVectors beta)
         : theta(theta)
         , beta(beta){};
 
-    const map<int, VectorXd> theta;
-    const map<int, VectorXd> beta;
+    const LatentVectors theta;
+    const LatentVectors beta;
 };
 
 struct Metrics
@@ -66,7 +68,7 @@ class PMF
 {
   private:
     // Initializes map vmap for each entity with random vector of size m_k sampling from distribution.
-    void initVectors(normal_distribution<> &dist, const vector<int> &entities, map<int, VectorXd> &vmap, const int k);
+    void initVectors(normal_distribution<> &dist, const vector<int> &entities, LatentVectors &vmap, const int k);
 
     // Evaluate log normal PDF at vector x.
     double logNormPDF(const VectorXd &x, double loc = 0.0, double scale = 1.0) const;
@@ -78,7 +80,7 @@ class PMF
     MatrixXd subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const;
 
     // Calculate the log probability of the data under the current model.
-    void computeLoss(const map<int, VectorXd> &theta, const map<int, VectorXd> &beta);
+    void computeLoss(const LatentVectors &theta, const LatentVectors &beta);
 
     // Computes loss from the theta and beta snapshots found in the
     // m_loss_queue queue.
@@ -99,8 +101,8 @@ class PMF
     const shared_ptr<MatrixXd> m_training_data;
     const double m_std_theta;
     const double m_std_beta;
-    map<int, VectorXd> m_theta;
-    map<int, VectorXd> m_beta;
+    LatentVectors m_theta;
+    LatentVectors m_beta;
     default_random_engine d_generator;
 
     vector<double> m_losses;
