@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     }
     else if (task == "recommend")
     {
-        // (3). Recommendatations
+        // (3). Recommendations
         // (3.1) Load model from file
         model.load(outdir);
 
