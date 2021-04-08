@@ -33,6 +33,7 @@
 *.tsk
 
 # python & Notebook files
+.ipynb
 .ipynb_checkpoints
 __pycache__/
 *.py[cod]
