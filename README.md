@@ -20,6 +20,14 @@ cmake .
 make test
 ```
 
+### Python wrapper
+We provide a simple python wrapper library `pmf` to enable interactive analysis, including model recommendations and plottings in jupyter notebooks. To install it:
+```bash
+cd pypmf
+./install.sh
+```
+Please refer to the [tutorial notebooks](example/pmf_tutorial.md) for details. 
+
 ## Running options
 ```
 Parameters for Probabilistic Matrix Factorization (PMF):
@@ -51,8 +59,7 @@ Parameters for Probabilistic Matrix Factorization (PMF):
 ```
 
 ## Quick start
-Please refer to the sample running scripts for [training](script/sample_train.sh) and [recommendation](script/sample_recommend.sh)
-
+Please refer to the sample running scripts for [training](example/sample_train.sh) and [recommendation](example/sample_recommend.sh).
 ## References
 - Mnih, A., & Salakhutdinov, R. R. (2007). Probabilistic matrix factorization. *Advances in neural information processing systems*, *20*, 1257-1264
 - Niu, F., Recht, B., Ré, C., & Wright, S. J. (2011). Hogwild!: A lock-free approach to parallelizing stochastic gradient descent. arXiv preprint arXiv:1106.5730
