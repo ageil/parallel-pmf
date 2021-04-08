@@ -32,8 +32,11 @@
 *.app
 *.tsk
 
-# Notebook files
+# python & Notebook files
 .ipynb_checkpoints
+__pycache__/
+*.py[cod]
+.idea
 
 .DS_Store
 .vscode
