@@ -89,10 +89,10 @@ class PMF
     void loadModel(filesystem::path &indir, LatentVar option);
 
     // Fit user preference vectors to sample data in batch.
-    void fitUsers(const Ref<MatrixXd> &batch, const double learning_rate);
+    void fitUsers(const Ref<MatrixXd> &batch, const double gamma);
 
     // Fit item  vectors to sample data in batch.
-    void fitItems(const Ref<MatrixXd> &batch, const double learning_rate);
+    void fitItems(const Ref<MatrixXd> &batch, const double gamma);
 
     // Returns item ids of top N items recommended for given user_id based on fitted data
     VectorXi recommend(const int user_id, const int N) const;
