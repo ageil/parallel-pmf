@@ -34,9 +34,9 @@ using LatentVectors = map<int, VectorXd>;
  * @param theta A map connecting each entity ID to its corresponding latent vector.
  * @param beta A map connecting each entity ID to its corresponding latent vector.
  */
-struct ThetaBetaSnapshot
+struct LatentVectorsSnapshot
 {
-    ThetaBetaSnapshot(const LatentVectors theta, const LatentVectors beta)
+    LatentVectorsSnapshot(const LatentVectors theta, const LatentVectors beta)
         : theta(theta)
         , beta(beta){};
 
@@ -48,13 +48,6 @@ struct Metrics
 {
     double precision;
     double recall;
-};
-
-enum class RecOption
-{
-    user = 0,
-    item = 1,
-    genre = 2
 };
 
 enum class LatentVar
@@ -108,7 +101,7 @@ class PMF
     mutex m_mutex;
     condition_variable m_cv;
     bool m_fit_in_progress;
-    queue<ThetaBetaSnapshot> m_loss_queue;
+    queue<LatentVectorsSnapshot> m_loss_queue;
     const int m_loss_interval;
 
   public:

@@ -199,7 +199,7 @@ void PMF::computeLossFromQueue()
 
         Expects(!m_loss_queue.empty());
 
-        const ThetaBetaSnapshot snapshot = [this] {
+        const LatentVectorsSnapshot snapshot = [this] {
             const auto snapshot_tmp = m_loss_queue.front();
             {
                 lock_guard<mutex> lock(m_mutex);
