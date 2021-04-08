@@ -6,6 +6,8 @@
 #include "datamanager.h"
 #include "utils.h"
 
+#include <gsl/gsl_assert>
+
 namespace DataManager
 {
 
@@ -124,6 +126,7 @@ DataManager::DataManager(const string &input, const double ratio)
     : m_data(make_shared<MatrixXd>(load(input)))
 
 {
+    Expects(ratio > 0 and ratio <= 1.0);
     tie(m_data_train, m_data_test) = split(ratio);
 
     // get all user & item ids
@@ -139,6 +142,7 @@ DataManager::DataManager(const string &input, const double ratio)
  */
 tuple<TrainingData, TestingData> DataManager::split(const double ratio)
 {
+    Expects(ratio > 0 and ratio <= 1.0);
     const int idx = static_cast<int>(m_data->rows() * ratio);
 
     return {make_shared<MatrixXd>(m_data->topRows(idx)),
