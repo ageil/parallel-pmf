@@ -30,26 +30,34 @@ int main(int argc, char **argv)
     double gamma = 0.01; // default learning rate for gradient descent
     double ratio = 0.7;  // train-test split ratio
     int n_threads = 20;
-
     double std_theta = 1.0;
     double std_beta = 1.0;
+    int loss_interval = 10;
+
+    // clang-format off
 
     po::options_description desc("Parameters for Probabilistic Matrix Factorization (PMF)");
-    desc.add_options()("help,h", "Help")("input,i", po::value<string>(&input), "Input file name")(
-        "map,m", po::value<string>(&map_input), "Item mapping file name")(
-        "task", po::value<string>(&task), "Task to perform\n [Options: 'train', 'recommend']")(
-        "output,o", po::value<filesystem::path>(&outdir), "Output directory\n  [default: current_path/results/]")(
-        "n_components,k", po::value<int>(&k), "Number of components (k)\n [default: 3]")(
-        "n_epochs,n", po::value<int>(&n_epochs), "Num. of learning iterations\n  [default: 200]")(
-        "ratio,r", po::value<double>(&ratio), "Ratio for training/test set splitting\n [default: 0.7]")(
-        "thread", po::value<int>(&n_threads), "Number of threads for parallelization")(
-        "gamma", po::value<double>(&gamma), "Learning rate for gradient descent\n  [default: 0.01]")(
-        "std_theta", po::value<double>(&std_theta), "Std. of theta's prior normal distribution\n  [default: 1]")(
-        "std_beta", po::value<double>(&std_beta), "Std. of beta's prior normal distribution\n  [default: 1]")(
-        "run_sequential,s", po::bool_switch()->default_value(false), "Enable running model fitting sequentially")(
-        "user", po::bool_switch()->default_value(false), "Recommend items for given user")(
-        "item", po::bool_switch()->default_value(false), "Recommend similar items for a given item")(
-        "genre", po::bool_switch()->default_value(false), "Recommend items for a given genre");
+    
+    desc.add_options()
+        ("help,h", "Help")
+        ("input,i", po::value<string>(&input), "Input file name")
+        ("map,m", po::value<string>(&map_input), "Item mapping file name")
+        ("task", po::value<string>(&task), "Task to perform\n [Options: 'train', 'recommend']")
+        ("output,o", po::value<filesystem::path>(&outdir), "Output directory\n  [default: current_path/results/]")
+        ("n_components,k", po::value<int>(&k), "Number of components (k)\n [default: 3]")
+        ("n_epochs,n", po::value<int>(&n_epochs), "Num. of learning iterations\n  [default: 200]")
+        ("ratio,r", po::value<double>(&ratio), "Ratio for training/test set splitting\n [default: 0.7]")
+        ("thread", po::value<int>(&n_threads), "Number of threads for parallelization")
+        ("gamma", po::value<double>(&gamma), "Learning rate for gradient descent\n  [default: 0.01]")
+        ("std_theta", po::value<double>(&std_theta), "Std. of theta's prior normal distribution\n  [default: 1]")
+        ("std_beta", po::value<double>(&std_beta), "Std. of beta's prior normal distribution\n  [default: 1]")
+        ("run_sequential,s", po::bool_switch()->default_value(false), "Enable running model fitting sequentially")
+        ("user", po::bool_switch()->default_value(false), "Recommend items for given user")
+        ("item", po::bool_switch()->default_value(false), "Recommend similar items for a given item")
+        ("genre", po::bool_switch()->default_value(false), "Recommend items for a given genre")
+        ("loss_interval, l", po::value<int>(&loss_interval), "Number of epochs between each loss computation. [default: 10]");
+
+    // clang-format on
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -101,11 +109,10 @@ int main(int argc, char **argv)
     cout << "Took " << dm_delta_t << " s. to load data. \n\n";
 
     // (2). Fit the model to the training data
-    Model::PMF model{data_mgr, k, std_beta, std_theta};
+    Model::PMF model{data_mgr, k, std_beta, std_theta, loss_interval};
 
     if (task == "train")
     {
-
         auto fit_t0 = chrono::steady_clock::now();
         vector<double> losses;
 

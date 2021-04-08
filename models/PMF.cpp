@@ -21,12 +21,13 @@ using namespace Utils;
 using namespace RatingsData;
 
 PMF::PMF(const shared_ptr<DataManager::DataManager> &data_mgr, const int k, const double std_beta,
-         const double std_theta)
+         const double std_theta, const int loss_interval)
     : m_data_mgr(data_mgr)
     , m_training_data(data_mgr->getTrain())
     , m_std_beta(std_beta)
     , m_std_theta(std_theta)
     , m_fit_in_progress(false)
+    , m_loss_interval(loss_interval)
 {
     cout << "[PMF] Initializing PMF with `data` size " << m_training_data->rows() << " x " << m_training_data->cols()
          << " with k=" << k << " std_beta=" << std_beta << " std_theta=" << std_theta << endl;
@@ -275,11 +276,12 @@ void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
  */
 vector<double> PMF::fitSequential(const int epochs, const double gamma)
 {
-    cout << "Running fit (sequential) on main thread." << endl << endl;
+    cout << "[fitSequential] Running fit (sequential) on main thread. Computing loss every " << m_loss_interval
+         << " epochs.\n\n";
 
     for (int epoch = 1; epoch <= epochs; epoch++)
     {
-        if (epoch % 10 == 0)
+        if (epoch % m_loss_interval == 0)
         {
             computeLoss(m_theta, m_beta);
             cout << "[fitSequential] Epoch: " << epoch << endl;
@@ -312,7 +314,7 @@ vector<double> PMF::fitParallel(const int epochs, const double gamma, const int 
          << "[fitParallel] max rows: " << max_rows << endl
          << "[fitParallel] batch size: " << batch_size << endl
          << "[fitParallel] num batches: " << num_batches << endl
-         << endl;
+         << "[fitParallel] Computing loss every " << m_loss_interval << " epochs\n\n";
 
     Utils::guarded_thread compute_loss_thread([this] {
         cout << "[computeLossThread] Loss computation thread started.\n";
@@ -322,7 +324,7 @@ vector<double> PMF::fitParallel(const int epochs, const double gamma, const int 
 
     for (int epoch = 1; epoch <= epochs; epoch++)
     {
-        if (epoch % 10 == 0)
+        if (epoch % m_loss_interval == 0)
         {
             {
                 lock_guard<mutex> lock(m_mutex);

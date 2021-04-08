@@ -47,6 +47,7 @@ Parameters for Probabilistic Matrix Factorization (PMF):
   --item                    Recommend similar items for a given item
   --genre                   Recommend items for a given genre
   -s [--run_sequential]     Enable running fit model sequentially
+  -l [--loss_interval] arg  Number of epochs between each loss computation. [default: 10]
 ```
 
 ## Quick start
@@ -56,4 +57,3 @@ Please refer to the sample running scripts for [training](script/sample_train.sh
 - Mnih, A., & Salakhutdinov, R. R. (2007). Probabilistic matrix factorization. *Advances in neural information processing systems*, *20*, 1257-1264
 - Niu, F., Recht, B., Ré, C., & Wright, S. J. (2011). Hogwild!: A lock-free approach to parallelizing stochastic gradient descent. arXiv preprint arXiv:1106.5730
 - GroupLens Research (2021). MovieLens dataset. https://grouplens.org/datasets/movielens/
-

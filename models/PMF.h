@@ -108,10 +108,11 @@ class PMF
     condition_variable m_cv;
     bool m_fit_in_progress;
     queue<ThetaBetaSnapshot> m_loss_queue;
+    const int m_loss_interval;
 
   public:
     PMF(const shared_ptr<DataManager::DataManager> &data_mgr, const int k, const double eta_beta,
-        const double eta_theta);
+        const double eta_theta, const int loss_interval);
     ~PMF();
 
     // Fits the ratings data sequentially updating m_theta and m_beta vectors with the learning rate given in gamma.
