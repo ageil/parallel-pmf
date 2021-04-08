@@ -387,7 +387,7 @@ void PMF::load(filesystem::path &indir)
 }
 
 /**
- * Helper function to load theta & becta vectors from file
+ * Helper function to load theta & beta vectors from file
  * @param indir Parent directory to files containing theta & beta vectors
  * @param option Specify which latent variable to load (LatentVar::theta or LatentVar::beta)
  */
@@ -613,10 +613,8 @@ vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id
     return similar_items;
 }
 
-// Return the precision & recall of the top N predicted items for each user in
-// the give dataset
 /**
- * Return the accuracy metrics of the top N predicted items for each user with their actual likes
+ * Calculate the accuracy metrics of the top N predicted items for each user with their actual likes
  * @param data A 3-column matrix with Col.1 - user IDs, Col.2 - item IDs & Col.3 - user's rating to item
  * @param N Number of the top predicted recommendations (items) compare with
  * @return Struct of {precision, recall} representing how frequency recommendations hit the actual users' likes
