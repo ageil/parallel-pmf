@@ -122,7 +122,7 @@ model.recommend_user(1)
     .dataframe tbody tr th {
         vertical-align: top;
     }
-
+    
     .dataframe thead th {
         text-align: right;
     }
@@ -221,7 +221,7 @@ model.recommend_items(87306)
     .dataframe tbody tr th {
         vertical-align: top;
     }
-
+    
     .dataframe thead th {
         text-align: right;
     }
@@ -316,7 +316,7 @@ model.recommend_items('Super 8 (2011)')
     .dataframe tbody tr th {
         vertical-align: top;
     }
-
+    
     .dataframe thead th {
         text-align: right;
     }
@@ -411,7 +411,7 @@ model.recommend_genre('Action')
     .dataframe tbody tr th {
         vertical-align: top;
     }
-
+    
     .dataframe thead th {
         text-align: right;
     }
@@ -492,9 +492,9 @@ model.display_loss()
 ```
 
 
-    
-![png](output_13_0.png)
-    
+​    
+![png](example_plots/output_13_0.png)
+​    
 
 
 
@@ -522,8 +522,8 @@ model.display_user(1, interactive=False)
 
 
 
-    
-![png](output_14_1.png)
+
+![png](example_plots/output_14_1.png)
     
 
 
@@ -552,8 +552,8 @@ model.display_item(260, interactive=False)
 
 
 
-    
-![png](output_15_1.png)
+
+![png](example_plots/output_15_1.png)
     
 
 
@@ -566,8 +566,8 @@ model.display_random(N=5, n_neighbors=20, interactive=False)
 
 
 
-    
-![png](output_16_1.png)
+
+![png](example_plots/output_16_1.png)
     
 
 
