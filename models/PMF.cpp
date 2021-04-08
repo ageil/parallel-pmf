@@ -1,7 +1,6 @@
 #include "PMF.h"
 #include "../csvlib/csv.h"
 #include "datamanager.h"
-#include "ratingsdata.h"
 #include "utils.h"
 
 #include <algorithm>
@@ -18,7 +17,6 @@ namespace Model
 {
 
 using namespace Utils;
-using namespace RatingsData;
 
 PMF::PMF(const shared_ptr<DataManager::DataManager> &data_mgr, const int k, const double std_beta,
          const double std_theta, const int loss_interval)
@@ -114,6 +112,8 @@ double PMF::logNormPDF(double x, double loc, double scale) const
  */
 MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
 {
+    using namespace DataManager;
+
     Expects(ID > 0);
     Expects(column == col_value(Cols::user) or column == col_value(Cols::item));
 
@@ -140,6 +140,8 @@ MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
  */
 void PMF::computeLoss(const LatentVectors &theta, const LatentVectors &beta)
 {
+    using namespace DataManager;
+
     double loss = 0;
 
     for (const auto user_id : m_data_mgr->users)
@@ -152,13 +154,17 @@ void PMF::computeLoss(const LatentVectors &theta, const LatentVectors &beta)
         loss += logNormPDF(beta.at(item_id));
     }
 
+    const int user_col = col_value(Cols::user);
+    const int item_col = col_value(Cols::item);
+    const int rating_col = col_value(Cols::rating);
+
     const auto &dataMatrix = *m_training_data;
     for (int idx = 0; idx < dataMatrix.rows(); idx++)
     {
-        int i = dataMatrix(idx, 0);
-        int j = dataMatrix(idx, 1);
+        int i = dataMatrix(idx, user_col);
+        int j = dataMatrix(idx, item_col);
 
-        double r = dataMatrix(idx, 2);
+        double r = dataMatrix(idx, rating_col);
         double r_hat = theta.at(i).dot(beta.at(j));
 
         loss += logNormPDF(r, r_hat);
@@ -216,6 +222,8 @@ void PMF::computeLossFromQueue()
  */
 void PMF::fitUsers(const Ref<MatrixXd> &batch, const double gamma)
 {
+    using namespace DataManager;
+
     Expects(gamma > 0.0);
 
     MatrixXd users = batch.col(col_value(Cols::user));
@@ -252,6 +260,8 @@ void PMF::fitUsers(const Ref<MatrixXd> &batch, const double gamma)
  */
 void PMF::fitItems(const Ref<MatrixXd> &batch, const double gamma)
 {
+    using namespace DataManager;
+
     Expects(gamma > 0.0);
 
     MatrixXd items = batch.col(col_value(Cols::item));
@@ -321,6 +331,8 @@ vector<double> PMF::fitSequential(const int epochs, const double gamma)
  */
 vector<double> PMF::fitParallel(const int epochs, const double gamma, const int n_threads)
 {
+    using namespace DataManager;
+
     Expects(epochs > 0);
     Expects(gamma > 0.0);
     Expects(n_threads > 0);
@@ -490,6 +502,8 @@ void PMF::save(filesystem::path &outdir)
  */
 VectorXd PMF::predict(const MatrixXd &data) const
 {
+    using namespace DataManager;
+
     Expects(data.cols() == 2);
 
     const int num_rows = data.rows();
@@ -517,6 +531,8 @@ VectorXd PMF::predict(const MatrixXd &data) const
  */
 VectorXi PMF::recommend(const int user_id, const int N) const
 {
+    using namespace DataManager;
+
     Expects(N >= 1);
     Expects(m_theta.count(user_id) > 0);
 
@@ -530,9 +546,12 @@ VectorXi PMF::recommend(const int user_id, const int N) const
     VectorXd user(items.size());
     user.setConstant(user_id);
 
+    const int user_col = col_value(Cols::user);
+    const int item_col = col_value(Cols::item);
+
     MatrixXd usr_data(items.size(), 2);
-    usr_data.col(0) = user;
-    usr_data.col(1) = items;
+    usr_data.col(user_col) = user;
+    usr_data.col(item_col) = items;
 
     VectorXd predictions = predict(usr_data);
     VectorXi item_indices = Utils::argsort(predictions, Order::descend);
@@ -653,6 +672,8 @@ vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id
  */
 Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N) const
 {
+    using namespace DataManager;
+
     Expects(N > 0);
 
     double num_likes_total = 0;
