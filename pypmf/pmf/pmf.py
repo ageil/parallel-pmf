@@ -11,9 +11,35 @@ from pmf import plot as pmf_plot
 
 class PMF(object):
     """
-    Python wrapper for our C++ program of Probablistic Matrix Factorizattion (PMF)
+    Python wrapper for the C++ program Parallel Probablistic Matrix Factorizattion (PMF)
     """
     def __init__(self, indir, outdir, task='train', **kwargs):
+        """
+        Parameters
+        ----------
+        indir : str
+            Parent directory for input datasets
+
+        outdir : str
+            Output directory to save model parameters & plots
+
+        task : str
+            Task for the model to perform
+            task = 'train' - perform training to learn latent model parameters
+            task = 'recommend' - perform recommendation based on learnt parameters
+
+        parallel : bool
+            Whether to perform multi-thread parallelization
+
+        thread : int
+            Number of theads during parallelized training
+
+        theta_std : float
+            Standard deviation of the prior distribution for theta vectors
+
+        beta_std: float
+            Standard deviation of the prior distribution for beta vectors
+        """
         pwd = os.path.join(os.path.dirname(__file__), 'bin')
         exec_name = 'main.tsk'
         self.bin_exec = os.path.join(pwd, exec_name)
@@ -65,6 +91,23 @@ class PMF(object):
                 self.args[key] = self.default_params[key]
 
     def learn(self, k=3, n_epochs=200, train_test_split=0.7):
+        """
+        Perform model training to learn model parameters given the dataset
+        It calls the C++ program to perform training and save the training
+        results to output directory
+
+        Parameters
+        ----------
+        k : int
+            Vector length for each theta & beta latent vector
+
+        n_epochs : int
+            Number of iterations for training
+
+        train_test_split : float
+            Ratio for random splitting the dataset into training & test sets
+        """
+
         cmd = [self.bin_exec,
                "--task {}".format(self.task),
                "-i {}".format(self.data_path),
@@ -82,6 +125,7 @@ class PMF(object):
         print(res)
 
     def load(self, indir):
+        """Load learnt model parameters & item mapping info. from file"""
         print('Loading previously learnt parameters into model...')
         theta_file = os.path.join(indir, "theta.csv")
         beta_file = os.path.join(indir, "beta.csv")
@@ -161,6 +205,7 @@ class PMF(object):
         return rec_use_ids
 
     def recommend_user(self, user_id, N=10, verbose=1):
+        """Recommend top N items for given user"""
         self._verify_load_status()
         assert user_id in self.users, \
             "User id {} doesn't exist in the dataset".format(user_id)
@@ -176,6 +221,7 @@ class PMF(object):
         return df_rec
 
     def recommend_items(self, item, N=10, verbose=1):
+        """Recommend top N most similar items for given item"""
         self._verify_load_status()
         if isinstance(item, str):
             try:
@@ -196,6 +242,7 @@ class PMF(object):
         return df_rec
 
     def recommend_joint(self, user_id, iter=2, N=3, verbose=1):
+        """Iterative recommend users and items for each other"""
         assert user_id in self.users, \
             "User {} doesn't exist in the dataset".format(user_id)
         if verbose:
@@ -224,6 +271,7 @@ class PMF(object):
         return rec_users, df_rec_items
 
     def recommend_genre(self, genre, N=10, verbose=1):
+        """Recommend top N items from a given genre"""
         self._verify_load_status()
         assert genre in self.genres, \
             "Genre {} doesen't exist in the dataset".format(genre)
@@ -280,7 +328,7 @@ class PMF(object):
         return self.beta_embedded
 
     def clustering(self):
-        # perform EM-clustering
+        """Perform EM-clustering on the items given trained beta vectors"""
         print('Performing EM clustering on items...')
         n_clusters, labels = self._find_optimal_k(self.beta_embedded)
         print("Detected {} clusters".format(n_clusters))
@@ -298,6 +346,7 @@ class PMF(object):
             pmf_plot.tsne(self.beta_embedded)
 
     def display_loss(self, save=True):
+        """Show loss vs. epoch"""
         self._verify_load_status()
         x = np.arange(self.loss.shape[0]) * 10 + 10
         self.loss['Epoch'] = x
