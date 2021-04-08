@@ -2,7 +2,10 @@ import os
 import subprocess
 import numpy as np
 import pandas as pd
-from scipy.spatial.distance import cosine
+
+from sklearn.manifold import TSNE
+from sklearn.mixture import GaussianMixture
+from sklearn.metrics import silhouette_score
 
 from pmf import plot as pmf_plot
 
@@ -22,12 +25,15 @@ class PMF(object):
 
         # model parameters
         self.theta = pd.DataFrame()  # dimension: user_id x k-dimensional theta latent attribute
-        self.beta = pd.DataFrame() # dimension: user_id x k-dimensional beta latent attribute
+        self.beta = pd.DataFrame() # dimension: item_id x k-dimensional beta latent attribute
+        self.beta_embedded = pd.DataFrame() # dimension: item_id x 3
+
+        self.loss = pd.DataFrame()
+
+        # dataset information
         self.users = set()
         self.items = set()
         self.genres = set()
-        self.loss = pd.DataFrame()
-
         # mapping information betweeen item, item title & genre
         self.item_title = {}
         self.item_genre = {}
@@ -245,7 +251,53 @@ class PMF(object):
 
         return df_rec
 
-    def display_loss(self, display=True, save=True):
+    def _find_optimal_k(self, df):
+        score = []
+        cluster_labels = []
+
+        for i, k in enumerate(range(3, 10)):
+            curr_labels = GaussianMixture(n_components=k).fit(df).predict(df)
+            score.append(silhouette_score(df, curr_labels))
+            if np.argmax(score) == i:
+                cluster_labels = curr_labels
+
+        idx = np.argmax(score)
+
+        return np.argmax(score) + 3, cluster_labels
+
+    def tsne(self):
+        """Perform dimension reduction on items to 3 attributes from k-dimension vector space"""
+        if self.theta.shape[1] == 3:
+            print("The model only inferred k = 3, no need to perform dimension reduction")
+            self.beta_embedded = self.beta.copy()
+        else:
+            print('Performing dimension reduction with t-SNE...')
+            self.beta_embedded = TSNE(n_components=3, n_jobs=4).fit_transform(self.beta)
+            self.beta_embedded = pd.DataFrame(self.beta_embedded,
+                                              index=self.beta.index,
+                                              columns=['attr_1', 'attr_2', 'attr_3'])
+
+        return self.beta_embedded
+
+    def clustering(self):
+        # perform EM-clustering
+        print('Performing EM clustering on items...')
+        n_clusters, labels = self._find_optimal_k(self.beta_embedded)
+        print("Detected {} clusters".format(n_clusters))
+        self.beta_embedded['cluster'] = labels
+
+    def display_tsne(self, interactive=True):
+        self._verify_load_status()
+        if len(self.beta_embedded) == 0:
+            self.tsne()
+        if 'cluster' not in self.beta_embedded.columns:
+            self.clustering()
+        if interactive:
+            pmf_plot.tsne_interactive(self.beta_embedded)
+        else:
+            pmf_plot.tsne(self.beta_embedded)
+
+    def display_loss(self, save=True):
         self._verify_load_status()
         x = np.arange(self.loss.shape[0]) * 10 + 10
         self.loss['Epoch'] = x
@@ -253,12 +305,14 @@ class PMF(object):
 
     def display_user(self, user_id, N=10, show_title=False, interactive=True):
         self._verify_load_status()
+        if len(self.beta_embedded) == 0:
+            self.tsne()
         print("Spatial visualization of top {0} recommended movies for user {1}...".format(N, user_id))
 
         df_rec = self.recommend_user(user_id, N)
         print(df_rec.head())
 
-        vec = self.beta.loc[df_rec.index].values
+        vec = self.beta_embedded.loc[df_rec.index].values
         titles = df_rec['title']
 
         if interactive:
@@ -268,13 +322,15 @@ class PMF(object):
 
     def display_item(self, item, N=10, show_title=False, interactive=True):
         self._verify_load_status()
+        if len(self.beta_embedded) == 0:
+            self.tsne()
         title = item if isinstance(item, str) else self.item_title[item]
         print("Spatial visualization of top {0} similar movies for item {1}...".format(N, title))
 
         df_rec = self.recommend_items(item, N)
         print(df_rec.head())
 
-        vec = self.beta.loc[df_rec.index].values
+        vec = self.beta_embedded.loc[df_rec.index].values
         titles = df_rec['title']
 
         if interactive:
@@ -284,11 +340,13 @@ class PMF(object):
 
     def display_genre(self, genre, N=10, show_title=False, interactive=True):
         self._verify_load_status()
+        if len(self.beta_embedded) == 0:
+            self.tsne()
         assert genre in self.genres, \
             "Genre {} doesen't exist in the dataset".format(genre)
 
         rand_ids = np.random.choice(list(self.genre_items[genre]), N)
-        vec = self.beta.loc[rand_ids].values
+        vec = self.beta_embedded.loc[rand_ids].values
         titles = pd.Series(rand_ids).map(self.item_title)
 
         if interactive:
@@ -299,10 +357,12 @@ class PMF(object):
     def display_joint(self, user_id, iter=2, N=10, show_title=False, interactive=True):
         """Iteratively plot interacting users & items"""
         self._verify_load_status()
+        if len(self.beta_embedded) == 0:
+            self.tsne()
         user_ids, df_items = self.recommend_joint(user_id, iter=iter)
 
         vec_users = self.theta.loc[user_ids].values
-        vec_items = self.beta.loc[df_items.index].values
+        vec_items = self.beta_embedded.loc[df_items.index].values
         titles = df_items['title']
 
         if interactive:
@@ -312,6 +372,8 @@ class PMF(object):
 
     def display_random(self, N=3, n_neighbors=10, show_title=False, interactive=True):
         self._verify_load_status()
+        if len(self.beta_embedded) == 0:
+            self.tsne()
         print('Spatial visualization of the neighbors of {} random items'.format(N))
 
         rand_ids = np.random.choice(list(self.items), N)
@@ -320,7 +382,7 @@ class PMF(object):
             idx = self.recommend_items(id, n_neighbors, verbose=0).index
             indices = indices.union(idx)
 
-        vec = self.beta.loc[indices].values
+        vec = self.beta_embedded.loc[indices].values
         titles = pd.Series(list(indices)).map(self.item_title)
 
         if interactive:
