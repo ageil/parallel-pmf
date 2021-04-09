@@ -569,9 +569,9 @@ VectorXi PMF::recommend(const int user_id, const int N) const
 }
 
 /**
- * Generate a vector of top N most recommended items with actual titles for user with ID user_id.
+ * Generate a vector of top N most recommended items with actual item_names for user with ID user_id.
  * @param user_id User ID of the user to generate item recommendations
- * @param item_name Hashmap of of item ID (int) to their item title (string)
+ * @param item_name Hashmap of of item ID (int) to their item item_name (string)
  * @param N Number of item recommendations to generate
  * @return A list of recommended items names sorted from most to least recommended
  */
@@ -593,43 +593,9 @@ vector<string> PMF::recommend(const int user_id, const unordered_map<int, string
 }
 
 /**
- * Generate a vector of random N recommended items from the input genre
- * @param genre Category for the recommended items
- * @param id_name Map of of item ID (int) to their item title (string)
- * @param genre_ids Map of genre name (string) to the full set of items within such genre (HashSet)
- * @param N Number of item recommendations to generate
- * @return A list of random recommended items given the input genre
- */
-vector<string> PMF::recommendByGenre(string &genre, unordered_map<int, string> &id_name,
-                                     unordered_map<string, unordered_set<int>> genre_ids, const int N)
-{
-    Expects(N > 0);
-
-    vector<string> similar_items{};
-    if (genre_ids.find(genre) == genre_ids.end())
-    {
-        cerr << "Didn't find the genre " << genre << " in current dataset..." << endl;
-        return similar_items;
-    }
-
-    // Random pick a movie with the input genre
-    unordered_set<int> id_set = genre_ids[genre];
-    default_random_engine generator;
-    generator.seed(std::chrono::system_clock::now().time_since_epoch().count());
-    uniform_int_distribution<int> dist(0, id_set.size() - 1);
-    auto itr = id_set.begin();
-    int loc = dist(generator);
-    std::advance(itr, loc);
-    int rand_id = *itr;
-
-    // Return top N items most similar to the selected item
-    return getSimilarItems(rand_id, id_name, N);
-}
-
-/**
  * Generate a vector of top N most similar items to the input item with Item ID
  * @param item_id Item ID of the item to generate item recommendations
- * @param id_name Map of of item ID (int) to their item title (string)
+ * @param id_name Map of of item ID (int) to their item item_name (string)
  * @param N Number of item recommendations to generate
  * @return A list of recommended items names sorted from the most to least similar to the input item
  */
