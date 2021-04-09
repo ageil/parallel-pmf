@@ -27,8 +27,6 @@ enum class Cols
 
 int col_value(Cols);
 
-const tuple<string, string, string> Header = {"userId", "itemId", "rating"};
-
 using TrainingData = shared_ptr<MatrixXd>;
 using TestingData = shared_ptr<MatrixXd>;
 
@@ -38,15 +36,15 @@ struct ItemMap
             unordered_map<string, string> ng, unordered_map<string, unordered_set<int>> gi)
         : id_name(std::move(in))
         , name_id(std::move(ni))
-        , id_item_attributes(std::move(ig))
-        , name_item_attributes(std::move(ng))
-        , item_attributes_ids(std::move(gi)){};
+        , id_genre(std::move(ig))
+        , name_genre(std::move(ng))
+        , genre_ids(std::move(gi)){};
 
     unordered_map<int, string> id_name;
     unordered_map<string, int> name_id;
-    unordered_map<int, string> id_item_attributes;
-    unordered_map<string, string> name_item_attributes;
-    unordered_map<string, unordered_set<int>> item_attributes_ids;
+    unordered_map<int, string> id_genre;
+    unordered_map<string, string> name_genre;
+    unordered_map<string, unordered_set<int>> genre_ids;
 };
 
 class DataManager

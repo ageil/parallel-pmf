@@ -59,9 +59,8 @@ void shuffle(MatrixXd &data)
 unsigned long int getLineNumber(const string &file_name)
 {
     io::CSVReader<3> in(file_name);
-
-    const auto [userIdCol, itemIdCol, ratingCol] = Header;
-    in.read_header(io::ignore_extra_column, userIdCol, itemIdCol, ratingCol);
+    // Todo: make these customizable?
+    in.read_header(io::ignore_extra_column, "userId", "movieId", "rating");
     double col1, col2, col3;
     unsigned long int count = 0;
 
@@ -94,18 +93,17 @@ MatrixXd load(const string &input_filepath)
     cout << "Loading input matrix..." << endl;
 
     io::CSVReader<3> in(input_filepath);
-    const auto [userIdCol, itemIdCol, ratingCol] = Header;
-    in.read_header(io::ignore_extra_column, userIdCol, itemIdCol, ratingCol);
+    in.read_header(io::ignore_extra_column, "userId", "movieId", "rating");
 
     int user_id;
-    int item_id;
+    int movie_id;
     double rating;
     int row_idx = 0;
 
-    while (in.read_row(user_id, item_id, rating))
+    while (in.read_row(user_id, movie_id, rating))
     {
         Vector3d curr;
-        curr << user_id, item_id, rating;
+        curr << user_id, movie_id, rating;
         data.row(row_idx) = curr;
         row_idx++;
     }
@@ -171,12 +169,11 @@ shared_ptr<MatrixXd> DataManager::getTest() const
 }
 
 /**
- * Load the mappings between items' ID (integer), item_names (string), and item_attributes (string)
+ * Load the mappings between items' ID (integer), titles (string), and genres (string)
  * @param input Input file name
- * @return Struct of multiple Maps between ID, item_names & item_attributes:
- * ItemMap.id_name - ID->item_name, ItemMap.name_id - item_name->ID, ItemMap.id_item_attributes - ID->item_attributes,
- * ItemMap.name_item_attributes - item_name->item_attributes, Item.item_attributes_ids - item_attributes->Set of IDs of
- * the given item_attributes
+ * @return Struct of multiple Maps between ID, titles & genres:
+ * ItemMap.id_name - ID->title, ItemMap.name_id - title->ID, ItemMap.id_genre - ID->genre, ItemMap.name_genre -
+ * title->genre, Item.genre_ids - genre->Set of IDs of the given genre
  */
 ItemMap DataManager::loadItemMap(const string &input)
 {
@@ -187,36 +184,35 @@ ItemMap DataManager::loadItemMap(const string &input)
     }
 
     io::CSVReader<3> in(input);
-
-    in.read_header(io::ignore_extra_column, "itemId", "itemName", "itemAttributes");
+    in.read_header(io::ignore_extra_column, "movieId", "title", "genres");
     int id;
-    string item_name;
-    string item_attributes;
+    string title;
+    string genre;
     unordered_map<int, string> id_name;
     unordered_map<string, int> name_id;
-    unordered_map<int, string> id_item_attributes;
-    unordered_map<string, string> name_item_attributes;
-    unordered_map<string, unordered_set<int>> item_attributes_ids;
+    unordered_map<int, string> id_genre;
+    unordered_map<string, string> name_genre;
+    unordered_map<string, unordered_set<int>> genre_ids;
 
-    while (in.read_row(id, item_name, item_attributes))
+    while (in.read_row(id, title, genre))
     {
-        id_name[id] = item_name;
-        name_id[item_name] = id;
-        id_item_attributes[id] = item_attributes;
-        name_item_attributes[item_name] = item_attributes;
-        string first_item_attributes = Utils::tokenize(item_attributes, "|")[0];
-        if (item_attributes_ids.find(first_item_attributes) == item_attributes_ids.end())
+        id_name[id] = title;
+        name_id[title] = id;
+        id_genre[id] = genre;
+        name_genre[title] = genre;
+        string first_genre = Utils::tokenize(genre, "|")[0];
+        if (genre_ids.find(first_genre) == genre_ids.end())
         {
             unordered_set<int> id_set(id);
-            item_attributes_ids[item_attributes] = id_set;
+            genre_ids[genre] = id_set;
         }
         else
         {
-            item_attributes_ids[item_attributes].insert(id);
+            genre_ids[genre].insert(id);
         }
     }
 
-    ItemMap item_map = ItemMap(id_name, name_id, id_item_attributes, name_item_attributes, item_attributes_ids);
+    ItemMap item_map = ItemMap(id_name, name_id, id_genre, name_genre, genre_ids);
 
     return item_map;
 }
