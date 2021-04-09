@@ -34,6 +34,9 @@ Parameters for Probabilistic Matrix Factorization (PMF):
   -h [ --help ]             Help
   -i [ --input ] arg        Input file name
   -m [ --map ] arg          Item mapping file name
+  -d [ --use_defaults ]     If enabled, uses './movielens/ratings.csv' for the 
+                            input file and './movielens/movies.csv' for the map
+                            input file
   --task arg                Task to perform
                              [Options: 'train', 'recommend']
   -o [ --output ] arg       Output directory
@@ -45,16 +48,18 @@ Parameters for Probabilistic Matrix Factorization (PMF):
   -r [ --ratio ] arg        Ratio for training/test set splitting
                              [default: 0.7]
   --thread arg              Number of threads for parallelization
+                             This value must be at least 2
   --gamma arg               Learning rate for gradient descent
                               [default: 0.01]
   --std_theta arg           Std. of theta's prior normal distribution
                               [default: 1]
   --std_beta arg            Std. of beta's prior normal distribution
                               [default: 1]
+  -s [ --run_sequential ]   Enable running model fitting sequentially
   --user                    Recommend items for given user
   --item                    Recommend similar items for a given item
-  -s [--run_sequential]     Enable running fit model sequentially
-  -l [--loss_interval] arg  Number of epochs between each loss computation. [default: 10]
+  --loss_interval arg       Number of epochs between each loss computation. 
+                            [default: 10]
 ```
 
 ## Quick start

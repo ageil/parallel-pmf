@@ -157,17 +157,17 @@ class PMF(object):
             "Item mapping file doesn't exist"
         df_mapper = pd.read_csv(self.mapper_path)
 
-        first_genre = df_mapper['genres'].apply(lambda x: x.strip().split('|')[0])
+        first_genre = df_mapper['itemAttributes'].apply(lambda x: x.strip().split('|')[0])
         df_mapper['first_genre'] = first_genre
         self.genres = set(np.unique(first_genre))
-        df_reidx1 = df_mapper.set_index('movieId')
-        df_reidx2 = df_mapper.set_index('title')
+        df_reidx1 = df_mapper.set_index('itemId')
+        df_reidx2 = df_mapper.set_index('itemName')
 
-        self.item_title = df_reidx1.to_dict()['title']
-        self.item_genre = df_reidx1.to_dict()['genres']
+        self.item_title = df_reidx1.to_dict()['itemName']
+        self.item_genre = df_reidx1.to_dict()['itemAttributes']
         item_first_genre = df_reidx1.to_dict()['first_genre']
-        self.title_item = df_reidx2.to_dict()['movieId']
-        self.title_genre = df_reidx2.to_dict()['genres']
+        self.title_item = df_reidx2.to_dict()['itemId']
+        self.title_genre = df_reidx2.to_dict()['itemAttributes']
 
         for item, genre in item_first_genre.items():
             if genre in self.genre_items.keys():
@@ -295,7 +295,7 @@ class PMF(object):
     def _refactor_rec(self, rec, idx=None):
         genres = rec.map(self.title_genre)
         idx = rec.index if idx is None else idx
-        df_rec = pd.DataFrame(zip(rec, genres), index=idx, columns=['title', 'genre'])
+        df_rec = pd.DataFrame(zip(rec, genres), index=idx, columns=['itemName', 'itemAttributes'])
 
         return df_rec
 
@@ -362,7 +362,7 @@ class PMF(object):
         print(df_rec.head())
 
         vec = self.beta_embedded.loc[df_rec.index].values
-        titles = df_rec['title']
+        titles = df_rec['itemName']
 
         if interactive:
             pmf_plot.arrow_interactive(vec, titles, show_title=show_title, is_similar=True)
@@ -380,7 +380,7 @@ class PMF(object):
         print(df_rec.head())
 
         vec = self.beta_embedded.loc[df_rec.index].values
-        titles = df_rec['title']
+        titles = df_rec['itemName']
 
         if interactive:
             pmf_plot.arrow_interactive(vec, titles, show_title=show_title, is_similar=True)
@@ -412,7 +412,7 @@ class PMF(object):
 
         vec_users = self.theta.loc[user_ids].values
         vec_items = self.beta_embedded.loc[df_items.index].values
-        titles = df_items['title']
+        titles = df_items['itemName']
 
         if interactive:
             pmf_plot.arrow_joint_interactive(vec_users, vec_items, titles, show_title=show_title)

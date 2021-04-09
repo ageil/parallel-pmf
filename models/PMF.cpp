@@ -569,9 +569,9 @@ VectorXi PMF::recommend(const int user_id, const int N) const
 }
 
 /**
- * Generate a vector of top N most recommended items with actual titles for user with ID user_id.
+ * Generate a vector of top N most recommended items with actual item_names for user with ID user_id.
  * @param user_id User ID of the user to generate item recommendations
- * @param item_name Hashmap of of item ID (int) to their item title (string)
+ * @param item_name Hashmap of of item ID (int) to their item item_name (string)
  * @param N Number of item recommendations to generate
  * @return A list of recommended items names sorted from most to least recommended
  */
@@ -595,7 +595,7 @@ vector<string> PMF::recommend(const int user_id, const unordered_map<int, string
 /**
  * Generate a vector of top N most similar items to the input item with Item ID
  * @param item_id Item ID of the item to generate item recommendations
- * @param id_name Map of of item ID (int) to their item title (string)
+ * @param id_name Map of of item ID (int) to their item item_name (string)
  * @param N Number of item recommendations to generate
  * @return A list of recommended items names sorted from the most to least similar to the input item
  */
