@@ -103,6 +103,8 @@ VectorXi argsort(const VectorXd &x, const Order option)
  */
 vector<int> getUnique(const shared_ptr<MatrixXd> &mat, int col_idx)
 {
+    Expects(col_idx >= 0 and col_idx <= mat->cols());
+
     const MatrixXd &col = mat->col(col_idx);
     set<int> unique_set{col.data(), col.data() + col.size()};
     vector<int> unique(unique_set.begin(), unique_set.end());
@@ -154,6 +156,9 @@ double rmse(const VectorXd &y, const VectorXd &y_hat)
  */
 double r2(const VectorXd &y, const VectorXd &y_hat)
 {
+    Expects(y.size() > 0);
+    Expects(y.size() == y_hat.size());
+
     VectorXd y_mean(y.size());
     y_mean.setConstant(y.mean());
     double SSE = (y - y_hat).array().square().sum();
@@ -169,6 +174,7 @@ double r2(const VectorXd &y, const VectorXd &y_hat)
  */
 double cosine(const VectorXd &v1, const VectorXd &v2)
 {
+    Expects(v1.size() > 0);
     Expects(v1.size() == v2.size());
     double distance = v1.dot(v2) / (v1.norm() * v2.norm());
 

@@ -1,7 +1,6 @@
 #ifndef PMF_H
 #define PMF_H
 
-#include <atomic>
 #include <condition_variable>
 #include <filesystem>
 #include <map>
@@ -35,9 +34,9 @@ using LatentVectors = map<int, VectorXd>;
  * @param theta A map connecting each entity ID to its corresponding latent vector.
  * @param beta A map connecting each entity ID to its corresponding latent vector.
  */
-struct ThetaBetaSnapshot
+struct LatentVectorsSnapshot
 {
-    ThetaBetaSnapshot(const LatentVectors theta, const LatentVectors beta)
+    LatentVectorsSnapshot(const LatentVectors theta, const LatentVectors beta)
         : theta(theta)
         , beta(beta){};
 
@@ -49,12 +48,6 @@ struct Metrics
 {
     double precision;
     double recall;
-};
-
-enum class RecOption
-{
-    user = 0,
-    item = 1,
 };
 
 enum class LatentVar
@@ -88,10 +81,10 @@ class PMF
     void loadModel(filesystem::path &indir, LatentVar option);
 
     // Fit user preference vectors to sample data in batch.
-    void fitUsers(const Ref<MatrixXd> &batch, const double learning_rate);
+    void fitUsers(const Ref<MatrixXd> &batch, const double gamma);
 
     // Fit item  vectors to sample data in batch.
-    void fitItems(const Ref<MatrixXd> &batch, const double learning_rate);
+    void fitItems(const Ref<MatrixXd> &batch, const double gamma);
 
     // Returns item ids of top N items recommended for given user_id based on fitted data
     VectorXi recommend(const int user_id, const int N) const;
@@ -108,7 +101,7 @@ class PMF
     mutex m_mutex;
     condition_variable m_cv;
     bool m_fit_in_progress;
-    queue<ThetaBetaSnapshot> m_loss_queue;
+    queue<LatentVectorsSnapshot> m_loss_queue;
     const int m_loss_interval;
 
   public:

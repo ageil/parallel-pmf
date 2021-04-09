@@ -15,11 +15,24 @@ using namespace Utils;
 using namespace chrono;
 namespace po = boost::program_options;
 
+namespace
+{
+/**
+ * Enums of the possible user options for recomendations
+ */
+enum class RecOption
+{
+    user = 0,
+    item = 1,
+    genre = 2
+};
+} // namespace
+
 int main(int argc, char **argv)
 {
     // Initialize default values for arguments, path configuration
     string task = "train";
-    Model::RecOption rec_option;
+    RecOption rec_option;
 
     string input = "./movielens/ratings.csv";
     string map_input = "./movielens/movies.csv";
@@ -75,11 +88,11 @@ int main(int argc, char **argv)
 
     if (vm["user"].as<bool>())
     {
-        rec_option = Model::RecOption::user;
+        rec_option = RecOption::user;
     }
     else if (vm["item"].as<bool>())
     {
-        rec_option = Model::RecOption::item;
+        rec_option = RecOption::item;
     }
 
     if (filesystem::exists(outdir))
@@ -111,7 +124,7 @@ int main(int argc, char **argv)
         auto fit_t0 = chrono::steady_clock::now();
         vector<double> losses;
 
-        if (run_fit_sequential or k == 1)
+        if (run_fit_sequential or n_threads == 1)
         {
             losses = model.fitSequential(n_epochs, gamma);
         }

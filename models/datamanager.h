@@ -15,6 +15,18 @@ namespace DataManager
 using namespace std;
 using namespace Eigen;
 
+/**
+ * Enums of the columns to their column indices of ratings dataset
+ */
+enum class Cols
+{
+    user = 0,
+    item = 1,
+    rating = 2
+};
+
+int col_value(Cols);
+
 using TrainingData = shared_ptr<MatrixXd>;
 using TestingData = shared_ptr<MatrixXd>;
 

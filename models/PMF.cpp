@@ -1,7 +1,6 @@
 #include "PMF.h"
 #include "../csvlib/csv.h"
 #include "datamanager.h"
-#include "ratingsdata.h"
 #include "utils.h"
 
 #include <algorithm>
@@ -18,7 +17,6 @@ namespace Model
 {
 
 using namespace Utils;
-using namespace RatingsData;
 
 PMF::PMF(const shared_ptr<DataManager::DataManager> &data_mgr, const int k, const double std_beta,
          const double std_theta, const int loss_interval)
@@ -57,6 +55,8 @@ PMF::~PMF()
  */
 void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities, LatentVectors &vmap, const int k)
 {
+    Expects(k > 0);
+
     auto rand = [&]() { return dist(d_generator); };
     for (int elem : entities)
     {
@@ -75,6 +75,8 @@ void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities, 
  */
 double PMF::logNormPDF(const VectorXd &x, double loc, double scale) const
 {
+    Expects(scale > 0.0);
+
     VectorXd vloc = VectorXd::Constant(x.size(), loc);
     double norm = (x - vloc).norm();
     double log_prob = -log(scale);
@@ -92,6 +94,8 @@ double PMF::logNormPDF(const VectorXd &x, double loc, double scale) const
  */
 double PMF::logNormPDF(double x, double loc, double scale) const
 {
+    Expects(scale > 0.0);
+
     double diff = x - loc;
     double log_prob = -log(scale);
     log_prob -= 1.0 / 2.0 * log(2.0 * M_PI);
@@ -108,6 +112,11 @@ double PMF::logNormPDF(double x, double loc, double scale) const
  */
 MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
 {
+    using namespace DataManager;
+
+    Expects(ID > 0);
+    Expects(column == col_value(Cols::user) or column == col_value(Cols::item));
+
     VectorXi is_id = (batch.col(column).array() == ID).cast<int>(); // which rows have ID in col?
     int num_rows = is_id.sum();
     int num_cols = batch.cols();
@@ -131,6 +140,8 @@ MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
  */
 void PMF::computeLoss(const LatentVectors &theta, const LatentVectors &beta)
 {
+    using namespace DataManager;
+
     double loss = 0;
 
     for (const auto user_id : m_data_mgr->users)
@@ -143,13 +154,17 @@ void PMF::computeLoss(const LatentVectors &theta, const LatentVectors &beta)
         loss += logNormPDF(beta.at(item_id));
     }
 
+    const int user_col = col_value(Cols::user);
+    const int item_col = col_value(Cols::item);
+    const int rating_col = col_value(Cols::rating);
+
     const auto &dataMatrix = *m_training_data;
     for (int idx = 0; idx < dataMatrix.rows(); idx++)
     {
-        int i = dataMatrix(idx, 0);
-        int j = dataMatrix(idx, 1);
+        int i = dataMatrix(idx, user_col);
+        int j = dataMatrix(idx, item_col);
 
-        double r = dataMatrix(idx, 2);
+        double r = dataMatrix(idx, rating_col);
         double r_hat = theta.at(i).dot(beta.at(j));
 
         loss += logNormPDF(r, r_hat);
@@ -184,7 +199,7 @@ void PMF::computeLossFromQueue()
 
         Expects(!m_loss_queue.empty());
 
-        const ThetaBetaSnapshot snapshot = [this] {
+        const LatentVectorsSnapshot snapshot = [this] {
             const auto snapshot_tmp = m_loss_queue.front();
             {
                 lock_guard<mutex> lock(m_mutex);
@@ -203,10 +218,14 @@ void PMF::computeLossFromQueue()
 /**
  * Compute gradient updates of each user in a batch of data, and apply the update to the corresponding theta vectors.
  * @param batch Reference to a batch of training data containing columns for user IDs, item IDs, and ratings (in order)
- * @param learning_rate Learning rate to be used in the gradient ascent procedure
+ * @param gamma Learning rate to be used in the gradient ascent procedure
  */
-void PMF::fitUsers(const Ref<MatrixXd> &batch, const double learning_rate)
+void PMF::fitUsers(const Ref<MatrixXd> &batch, const double gamma)
 {
+    using namespace DataManager;
+
+    Expects(gamma > 0.0);
+
     MatrixXd users = batch.col(col_value(Cols::user));
     set<int> unique_users = {users.data(), users.data() + users.size()};
 
@@ -228,7 +247,7 @@ void PMF::fitUsers(const Ref<MatrixXd> &batch, const double learning_rate)
             grad += (rating - rating_hat) * m_beta[itmID];
         }
 
-        VectorXd update = m_theta[usr_id] + learning_rate * grad;
+        VectorXd update = m_theta[usr_id] + gamma * grad;
         update.normalize();
         m_theta[usr_id] = update; // note: no lock needed
     }
@@ -237,10 +256,14 @@ void PMF::fitUsers(const Ref<MatrixXd> &batch, const double learning_rate)
 /**
  * Compute gradient updates of each item in a batch of data, and apply the update to the corresponding beta vectors.
  * @param batch Reference to a batch of training data containing columns for user IDs, item IDs, and ratings (in order)
- * @param learning_rate Learning rate to be used in the gradient ascent procedure
+ * @param gamma Learning rate to be used in the gradient ascent procedure
  */
-void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
+void PMF::fitItems(const Ref<MatrixXd> &batch, const double gamma)
 {
+    using namespace DataManager;
+
+    Expects(gamma > 0.0);
+
     MatrixXd items = batch.col(col_value(Cols::item));
     set<int> unique_items = {items.data(), items.data() + items.size()};
 
@@ -261,7 +284,7 @@ void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
             grad += (rating - rating_hat) * m_theta[usrID];
         }
 
-        VectorXd update = m_beta[itm_id] + learning_rate * grad;
+        VectorXd update = m_beta[itm_id] + gamma * grad;
         update.normalize();
         m_beta[itm_id] = update; // note: no lock needed
     }
@@ -276,6 +299,9 @@ void PMF::fitItems(const Ref<MatrixXd> &batch, const double learning_rate)
  */
 vector<double> PMF::fitSequential(const int epochs, const double gamma)
 {
+    Expects(epochs > 0);
+    Expects(gamma > 0.0);
+
     cout << "[fitSequential] Running fit (sequential) on main thread. Computing loss every " << m_loss_interval
          << " epochs.\n\n";
 
@@ -305,6 +331,12 @@ vector<double> PMF::fitSequential(const int epochs, const double gamma)
  */
 vector<double> PMF::fitParallel(const int epochs, const double gamma, const int n_threads)
 {
+    using namespace DataManager;
+
+    Expects(epochs > 0);
+    Expects(gamma > 0.0);
+    Expects(n_threads > 0);
+
     const int max_rows = m_training_data->rows();
     int batch_size = max_rows / (n_threads - 1); // (n-1) threads for params. update, 1 thread for loss calculation
     const int num_batches = max_rows / batch_size;
@@ -387,7 +419,7 @@ void PMF::load(filesystem::path &indir)
 }
 
 /**
- * Helper function to load theta & becta vectors from file
+ * Helper function to load theta & beta vectors from file
  * @param indir Parent directory to files containing theta & beta vectors
  * @param option Specify which latent variable to load (LatentVar::theta or LatentVar::beta)
  */
@@ -470,7 +502,10 @@ void PMF::save(filesystem::path &outdir)
  */
 VectorXd PMF::predict(const MatrixXd &data) const
 {
+    using namespace DataManager;
+
     Expects(data.cols() == 2);
+
     const int num_rows = data.rows();
 
     VectorXd predictions(num_rows);
@@ -496,6 +531,11 @@ VectorXd PMF::predict(const MatrixXd &data) const
  */
 VectorXi PMF::recommend(const int user_id, const int N) const
 {
+    using namespace DataManager;
+
+    Expects(N >= 1);
+    Expects(m_theta.count(user_id) > 0);
+
     vector<double> vi_items{};
     for (auto &it : m_beta)
     {
@@ -506,9 +546,12 @@ VectorXi PMF::recommend(const int user_id, const int N) const
     VectorXd user(items.size());
     user.setConstant(user_id);
 
+    const int user_col = col_value(Cols::user);
+    const int item_col = col_value(Cols::item);
+
     MatrixXd usr_data(items.size(), 2);
-    usr_data.col(0) = user;
-    usr_data.col(1) = items;
+    usr_data.col(user_col) = user;
+    usr_data.col(item_col) = items;
 
     VectorXd predictions = predict(usr_data);
     VectorXi item_indices = Utils::argsort(predictions, Order::descend);
@@ -534,6 +577,9 @@ VectorXi PMF::recommend(const int user_id, const int N) const
  */
 vector<string> PMF::recommend(const int user_id, const unordered_map<int, string> &item_name, const int N) const
 {
+    Expects(N >= 1);
+    Expects(m_theta.count(user_id) > 0);
+
     // Get top N item recommendations for user
     VectorXi rec = recommend(user_id, N);
     vector<string> rec_names;
@@ -555,6 +601,9 @@ vector<string> PMF::recommend(const int user_id, const unordered_map<int, string
  */
 vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id_name, const int N)
 {
+    Expects(N > 0);
+    Expects(m_beta.count(item_id) > 0);
+
     VectorXd beta_item_id = m_beta.at(item_id);
     vector<double> similarities{};
     unordered_map<double, int> similarity_id{};
@@ -581,16 +630,18 @@ vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id
     return similar_items;
 }
 
-// Return the precision & recall of the top N predicted items for each user in
-// the give dataset
 /**
- * Return the accuracy metrics of the top N predicted items for each user with their actual likes
+ * Calculate the accuracy metrics of the top N predicted items for each user with their actual likes
  * @param data A 3-column matrix with Col.1 - user IDs, Col.2 - item IDs & Col.3 - user's rating to item
  * @param N Number of the top predicted recommendations (items) compare with
  * @return Struct of {precision, recall} representing how frequency recommendations hit the actual users' likes
  */
 Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N) const
 {
+    using namespace DataManager;
+
+    Expects(N > 0);
+
     double num_likes_total = 0;
     double num_hits_total = 0;
 

@@ -6,6 +6,8 @@
 #include "datamanager.h"
 #include "utils.h"
 
+#include <gsl/gsl_assert>
+
 namespace DataManager
 {
 
@@ -20,7 +22,8 @@ namespace
  */
 void zeroCenter(MatrixXd &data)
 {
-    set<double> unique_vals{data.col(2).data(), data.col(2).data() + data.col(2).size()};
+    const int rating_col = col_value(Cols::rating);
+    set<double> unique_vals{data.col(rating_col).data(), data.col(rating_col).data() + data.col(rating_col).size()};
 
     double sum = 0;
 
@@ -33,7 +36,7 @@ void zeroCenter(MatrixXd &data)
 
     for (int i = 0; i < data.rows(); i++)
     {
-        data(i, 2) -= mid;
+        data(i, rating_col) -= mid;
     }
 }
 
@@ -124,6 +127,7 @@ DataManager::DataManager(const string &input, const double ratio)
     : m_data(make_shared<MatrixXd>(load(input)))
 
 {
+    Expects(ratio > 0.0 && ratio <= 1.0);
     tie(m_data_train, m_data_test) = split(ratio);
 
     // get all user & item ids
@@ -139,6 +143,7 @@ DataManager::DataManager(const string &input, const double ratio)
  */
 tuple<TrainingData, TestingData> DataManager::split(const double ratio)
 {
+    Expects(ratio > 0.0 && ratio <= 1.0);
     const int idx = static_cast<int>(m_data->rows() * ratio);
 
     return {make_shared<MatrixXd>(m_data->topRows(idx)),
@@ -210,6 +215,16 @@ ItemMap DataManager::loadItemMap(const string &input)
     ItemMap item_map = ItemMap(id_name, name_id, id_genre, name_genre, genre_ids);
 
     return item_map;
+}
+
+/**
+ * Cast the Cols enum class type to its corresponding enum type
+ * @param Cols enum of the Cols type
+ * @return Int representing the column idx
+ */
+int col_value(Cols column)
+{
+    return static_cast<int>(column);
 }
 
 } // namespace DataManager
