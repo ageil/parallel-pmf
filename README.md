@@ -37,29 +37,43 @@ Parameters for Probabilistic Matrix Factorization (PMF):
   -d [ --use_defaults ]     If enabled, uses './movielens/ratings.csv' for the 
                             input file and './movielens/movies.csv' for the map
                             input file
-  --task arg                Task to perform
-                             [Options: 'train', 'recommend']
   -o [ --output ] arg       Output directory
-                              [default: current_path/results/]
+                            [default: current_path/results/]
+                            
+                            
+  --task arg                Task to perform
+                            [Options: 'train', 'recommend']
+                            
   -k [ --n_components ] arg Number of components (k)
-                             [default: 3]
+                            [default: 3]
+                            
   -n [ --n_epochs ] arg     Num. of learning iterations
-                              [default: 200]
+                            [default: 200]
+                            
   -r [ --ratio ] arg        Ratio for training/test set splitting
-                             [default: 0.7]
+                            [default: 0.7]
+                            
   --thread arg              Number of threads for parallelization
-                             This value must be at least 2
+                            This value must be at least 2
+                            
   --gamma arg               Learning rate for gradient descent
-                              [default: 0.01]
+                            [default: 0.01]
+                            
   --std_theta arg           Std. of theta's prior normal distribution
-                              [default: 1]
+                            [default: 1]
+                            
   --std_beta arg            Std. of beta's prior normal distribution
-                              [default: 1]
+                            [default: 1]
+                            
   -s [ --run_sequential ]   Enable running model fitting sequentially
+                            
   --user                    Recommend items for given user
+                            
   --item                    Recommend similar items for a given item
-  --loss_interval arg       Number of epochs between each loss computation. 
+                            
+  --loss_interval arg       Number of epochs between each loss computation.
                             [default: 10]
+
 ```
 
 ## Quick start
