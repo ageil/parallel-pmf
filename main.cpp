@@ -24,8 +24,8 @@ enum class RecOption
 {
     user = 0,
     item = 1,
-    genre = 2
 };
+
 } // namespace
 
 int main(int argc, char **argv)
