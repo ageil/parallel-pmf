@@ -25,6 +25,7 @@ enum class RecOption
     user = 0,
     item = 1
 };
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -151,7 +152,7 @@ int main(int argc, char **argv)
         auto fit_t0 = chrono::steady_clock::now();
         vector<double> losses;
 
-        if (run_fit_sequential)
+        if (run_fit_sequential or n_threads == 1)
         {
             losses = model.fitSequential(n_epochs, gamma);
         }

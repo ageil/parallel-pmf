@@ -53,7 +53,6 @@ Parameters for Probabilistic Matrix Factorization (PMF):
                               [default: 1]
   --user                    Recommend items for given user
   --item                    Recommend similar items for a given item
-  --genre                   Recommend items for a given genre
   -s [--run_sequential]     Enable running fit model sequentially
   -l [--loss_interval] arg  Number of epochs between each loss computation. [default: 10]
 ```
