@@ -50,7 +50,7 @@ We provide a light-weighted command-line program compiled from our C++ project t
 
 First, to instruct the program which task it will perform, use the option `--task` : `--task train` will fit the dataset to learn the PMF model,  and `--task test` will use learned model to make recommendations.
 
-To load your *ratings* dataset, use the option `-i` or `--input` to input its file path; Similarly, to load your item's *supplementary* dataset with `-m` or `--map`. However, if you opt to use our provided [Movielens](./movielens) datasets, just pass in `--use_defaults` or `-d`.
+To load your *ratings* dataset, use the option `-i` or `--input` to input its file path; Similarly, to load your item's *supplementary* dataset with `-m` or `--map`. However, if you opt to use our provided [Movielens](https://github.com/ageil/parallel-pmf/tree/main/movielens) datasets, just pass in `--use_defaults` or `-d`.
 
 In our first example, we will use the provided default datasets.
 
@@ -86,7 +86,127 @@ OK, you might see that our model converges in the provided example, but this doe
 ./main.tsk -d --run_sequential --gamma 0.1
 ```
 
+The default `gamma` value is set to 0.01, and we recommend adjusting it by a factor of 10 until reaching the desired effect. In general, a higher learning rate may lead the model to jump "out of" the global optimum and impair the optimization, whereas a lower learning rate results in more fine-grained loss update. For this reason, it's typically better to start with a relative high `gamma` and gradually decrease it to have a more precise estimate of the latent vectors' parameters.
+
+To see how our model works in progress, we refer to the *loss function values*,  which in general measure how likely we observe the dataset given the model parameter values at each step ($ \log \Pr (\text{Data, Model}) $) . Then how often we want to compute such loss function? We provide an option to adjust that:
+
+```bash
+./main.tsk -d --run_sequential --loss_interval 1
+```
+
+It specifies the program to calculate the loss for every epoch, which might slow down the model fitting a bit especially in the sequential version. For this reason, we don't need to check the loss values every time. By default we compute it every 10 epochs. Here's a plot of the loss value's progress for our default command-line setup:
+
+<img src="example/loss.png" width="500"/>
+
+Great, now we know how to adjust the optimization parameters to more effectively fit the model. Then How can we build confidence that our fitted model has indeed learned a useful representation for our latent preference and attribute vectors? To do this, we measure the *root mean squared error* (RMSE) of our model’s predictions on unseen test data. RMSE is a useful measure because it elegantly captures the number of points our model’s predictions can be expected to be off by the actual (observed) ratings on the rating scale. 
+
+You may have noticed the program printing out three measurements of the RMSE at the end of the command line. RMSE(0) represents the expected error of a (naïve) model predicting *only* the middle of the rating scale for every user-item pair. Similarly, RMSE(mean) represents the expected error of a (slightly less naïve) model predicting *only* the average rating across the training dataset. Lastly, RMSE(pred) represents the expected error of our model’s predictions using the learned feature vectors. If the error of our trained model is lower than the two other benchmarks, we know the model learned something useful. For the sample MovieLens dataset, we should generally expect to see an error in the range of 0.9x – considerably lower than the benchmarks.
+
+What if the model’s RMSE is not better than the benchmark measurements – what can we do to improve the RMSE in general? The first line of defense in this case is to adjust the *size* of the latent vectors. This can be achieved by using the “n_components” command line argument as follows:
+
+```bash
+./main.tsk -d --run_sequential --n_components 5
+```
+
+Admittedly, adjusting this parameter requires a bit of *fingerspitzgefühl*. On the one hand, making the latent vector size too small may prohibit the model from fully expressing the nuances in the dataset. On the other hand, making the latent vector size too large may give the model too much freedom to orient the vectors in ways that are only representative of the training data, not generalizing well to new (test) data.
+
+Another approach is to adjust the split-ratio between training and test data. Before fitting the model, the program randomly partitions the dataset into a training set (used for model fitting) and a test set (used for model evaluation).  By convention, we utilize a larger fraction (~50-80%) of the dataset for training and the remaining sections for testing. In this way, the model learns as much latent features from the dataset as possible, without compromising to the pitfall of *overfitting* - when model fits a certain data well enough without good generalizablilty. You may adjust the train-test split ratio as follows:
+
+```bash
+./main.tsk -d --run_sequential --ratio 0.8
+```
+
+For smaller datasets, we recommend keeping a split-ratio of 0.7 to maintain a stable representation of the model’s performance on unseen data. If the split-ratio is set too high compared to the size of the data set, the RMSE may fluctuate wildly between runs using the same parameters, simply because of the random selection of observations to be used in the test data.
 
 
-<b>$\Large\S$ 5. Using the model for recommendations</b>
 
+<b>$\Large\S$ 5. Parallelization & Optimization</b>
+
+We can finally discuss how to speed up the model fitting with parallelization after introducing essential background of the PMF. The functionality for parallelization is indeed the brightest feature of our program, which makes our model training effectively scalable. 
+
+As mentioned earlier, by default, the model fitting will run with multiple threads parallelizing the updates to the vectors. So far we have been running in sequential mode with the `--run_sequential`. We can remove this argument from now. By running the default ```./main.tsk -d``` command, we use 20 threads for parallelization: the system allocates 19 threads for updating latent user & item vectors and the remaining 1 thread for loss calculation. In other words, we split the training data into 19 batches of <u>equal-size, mutually disjoint submatrices</u>, compute and update parameters in parallel. 
+
+The number of threads for parallelization can be adjusted with `--thread` option. For example:
+
+```bash
+./main.tsk -d --thread 90
+```
+
+It sets 89 threads for model parameter updating and 1 for loss calculation. Due to the nature of the thread allocation in parallel mode --- *at least* one for loss calculation and one for fitting, the <u>minimum</u> number of threads can be specified is 2. 
+
+Here's a measure of running time vs. number of threads for our provided dataset on a 12-core regular linux machine. The optimal running time converges after # threads increases to around 50, which takes only around 2 seconds for training. By comparison, the sequential mode for the same dataset takes around 150s and the python implementation takes over 800s! The optimal value for `--thread` varies in different machine and definitely worth tuning.
+
+![img1](./example/parallel.png)
+
+<b>$\Large\S$ 6. Using the model for recommendations</b>
+
+After learning the latent user preference and item attribute vectors from the dataset, we’re now ready to make recommendations. Our program provides a simple interactive way for two types of recommendations: user $\rightarrow$ item & item $\rightarrow$ item. Let’s see the example of a “recommendation” mode run and we’ll break down the details later.
+
+```
+./main.tsk --task recommend -d --user
+```
+
+Since the terminal in nature has “state-less” feature without storing information between separate runs, we need to remind our program again the items in the *rating* dataset and their *supplementary* information. 
+
+Here we use the default input directories for dataset loading. As you might have seen from the terminal, the program asks ```Please specify user id:```. Simplify fill in a user id and type return, the program will display the top 10 recommended items that the given user might like the most. Here's a snapshot result in our example run:
+
+```
+Loading previously learnt parameters into model...
+Please specify user id: 
+1
+
+Top 10 recommended items for user 1 :
+
+Item: Tokyo-Ga (1985)   Attribute: Documentary
+Item: Odd Life of Timothy Green  (2012) Attribute: Comedy|Drama|Fantasy
+Item: Distinguished Gentleman  (1992)   Attribute: Comedy
+Item: How to Succeed in Business Without Really Trying (1967)   Attribute: Comedy|Musical
+Item: Shaft (1971)      Attribute: Action|Crime|Drama|Thriller
+Item: Pursuit of Happyness  (2006)      Attribute: Drama
+Item: Searching for Sugar Man (2012)    Attribute: Documentary
+Item: Them! (1954)      Attribute: Horror|Sci-Fi|Thriller
+Item: Captain Phillips (2013)   Attribute: Adventure|Drama|Thriller|IMAX
+Item: From Hell (2001)  Attribute: Crime|Horror|Mystery|Thriller
+```
+
+ This is the first type of recommendation we provide: recommending items that a user may like from the learned $\theta$ vector associated with the given user. We also provide another recommendation plan: recommending items from items. Let’s try the example below
+
+```bash
+./main.tsk --task recommend -d --item
+```
+
+Similarly, type in an item name and the program will return the top 10 most “similar” items inferred from the model:
+
+```
+Please specify item name: 
+Captain Phillips (2013)
+
+Top 10 similar items to Captain Phillips (2013) :
+
+Item: Escape from Planet Earth (2013)   Attributes: Adventure|Animation|Comedy|Sci-Fi
+Item: From Hell (2001)  Attributes: Crime|Horror|Mystery|Thriller
+Item: Brave Little Toaster  (1987)      Attributes: Animation|Children
+Item: How to Succeed in Business Without Really Trying (1967)   Attributes: Comedy|Musical
+Item: Pursuit of Happyness  (2006)      Attributes: Drama
+Item: Shaft (1971)      Attributes: Action|Crime|Drama|Thriller
+Item: Sword in the Stone  (1963)        Attributes: Animation|Children|Fantasy|Musical
+Item: Them! (1954)      Attributes: Horror|Sci-Fi|Thriller
+Item: Distinguished Gentleman  (1992)   Attributes: Comedy
+Item: Monsters University (2013)        Attributes: Adventure|Animation|Comedy
+```
+
+Please keep in mind that the PMF model won’t simply recommend items sharing similar attributes (e.g. recommending comedies from comedies), but the recommendation is instead based on interaction effects: A certain cluster of users may love the input item, and happen to like some other movies in common, so the model assumes these common items are “liked” from the common users and consequently must share some latent features in common. 
+
+
+
+#### Appendix
+
+Besides the light-weighed command-line interface, we also provide a Python wrapper called "pmPMF", binding with our C++ core Parallel PMF implementation. Users may find it easier to perform analysis, including recommendation and visualization in an interactive Jupyter notebook environment. We're still in progress to fully refine it (to be released in  v1.2.0), but here's a current [example](https://github.com/ageil/parallel-pmf/blob/main/example/pmf_tutorial.md) on how to run and recommend from it. The syntax is almost the same with the command-line program, and both of them uses the executable from our C++ program.
+
+
+
+### References
+
+- Mnih, A., & Salakhutdinov, R. R. (2007). Probabilistic matrix factorization. *Advances in neural information processing systems*, *20*, 1257-1264
+- Niu, F., Recht, B., Ré, C., & Wright, S. J. (2011). Hogwild!: A  lock-free approach to parallelizing stochastic gradient descent. arXiv  preprint arXiv:1106.5730
+- GroupLens Research (2021). MovieLens dataset. https://grouplens.org/datasets/movielens
