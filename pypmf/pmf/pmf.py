@@ -345,7 +345,7 @@ class PMF(object):
         else:
             pmf_plot.tsne(self.beta_embedded)
 
-    def display_loss(self, save=True):
+    def display_loss(self):
         """Show loss vs. epoch"""
         self._verify_load_status()
         x = np.arange(self.loss.shape[0]) * 10 + 10

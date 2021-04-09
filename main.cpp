@@ -54,7 +54,6 @@ int main(int argc, char **argv)
         ("run_sequential,s", po::bool_switch()->default_value(false), "Enable running model fitting sequentially")
         ("user", po::bool_switch()->default_value(false), "Recommend items for given user")
         ("item", po::bool_switch()->default_value(false), "Recommend similar items for a given item")
-        ("genre", po::bool_switch()->default_value(false), "Recommend items for a given genre")
         ("loss_interval, l", po::value<int>(&loss_interval), "Number of epochs between each loss computation. [default: 10]");
 
     // clang-format on
@@ -81,10 +80,6 @@ int main(int argc, char **argv)
     else if (vm["item"].as<bool>())
     {
         rec_option = Model::RecOption::item;
-    }
-    else if (vm["genre"].as<bool>())
-    {
-        rec_option = Model::RecOption::genre;
     }
 
     if (filesystem::exists(outdir))
@@ -116,7 +111,7 @@ int main(int argc, char **argv)
         auto fit_t0 = chrono::steady_clock::now();
         vector<double> losses;
 
-        if (run_fit_sequential)
+        if (run_fit_sequential or k == 1)
         {
             losses = model.fitSequential(n_epochs, gamma);
         }
@@ -147,7 +142,7 @@ int main(int argc, char **argv)
     }
     else if (task == "recommend")
     {
-        // (3). Recommendatations
+        // (3). Recommendations
         // (3.1) Load model from file
         model.load(outdir);
 
@@ -189,27 +184,6 @@ int main(int argc, char **argv)
             {
                 vector<string> rec = model.getSimilarItems(item_map.name_id[item_name], item_map.id_name, 10);
                 cout << "\nTop 10 similar movies to " << item_name << " :" << endl << endl;
-                for (auto &title : rec)
-                {
-                    cout << "Movie: " << title << '\t' << "Genre: " << item_map.name_genre[title] << endl;
-                }
-            }
-        }
-        else
-        {
-            // (3.2-3) recommend from genre
-            cout << "Please specify genre: " << endl;
-            string genre;
-            getline(cin, genre);
-
-            if (item_map.genre_ids.find(genre) == item_map.genre_ids.end())
-            {
-                cerr << "Genre " << genre << " doesn't exist in the dataset" << endl;
-            }
-            else
-            {
-                vector<string> rec = model.recommendByGenre(genre, item_map.id_name, item_map.genre_ids, 10);
-                cout << "\n10 random recommended movies for genre " << genre << " :" << endl << endl;
                 for (auto &title : rec)
                 {
                     cout << "Movie: " << title << '\t' << "Genre: " << item_map.name_genre[title] << endl;

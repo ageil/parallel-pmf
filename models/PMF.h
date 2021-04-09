@@ -55,7 +55,6 @@ enum class RecOption
 {
     user = 0,
     item = 1,
-    genre = 2
 };
 
 enum class LatentVar
@@ -140,10 +139,6 @@ class PMF
     // Returns the precision & recall of the top N predicted items for each user in
     // the give dataset.
     Metrics accuracy(const shared_ptr<MatrixXd> &data, const int N) const;
-
-    // Returns the top N relevant items given a random item sampled from its input genre category
-    vector<string> recommendByGenre(string &genre, unordered_map<int, string> &id_name,
-                                    unordered_map<string, unordered_set<int>> genre_ids, int N = 10);
 
     // Returns the top N similar items given the input item name
     vector<string> getSimilarItems(int &item_id, unordered_map<int, string> &id_name, int N = 10);

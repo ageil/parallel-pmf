@@ -26,15 +26,13 @@ class Arrow3D(FancyArrowPatch):
         FancyArrowPatch.draw(self, renderer)
 
 
-def loss(df_loss, outdir, display=True, save=False):
+def loss(df_loss, outdir, display=True):
     sns.set_theme()
-    fig = plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(10, 8))
     plt.suptitle('Log-likelihood')
     sns.lineplot(data=df_loss, x='Epoch', y='Loss', marker="o")
     if display:
         plt.show()
-    if save:
-        fig.savefig(os.path.join(outdir, 'loglikelihood.png', dpi=100))
 
 
 def _norm_vector(vec):
