@@ -134,7 +134,7 @@ double rmse(const VectorXd &y, const double y_hat)
  * Calculate root-mean-squared error (RMSE) between two vectors
  * @param y Ground-truth vector
  * @param y_hat Prediction vector
- * @return Rsqrt( ∑_i(y_i - y_hat_i)^2 / size(y))
+ * @return sqrt( ∑_i(y_i - y_hat_i)^2 / size(y))
  */
 double rmse(const VectorXd &y, const VectorXd &y_hat)
 {

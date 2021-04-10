@@ -149,6 +149,7 @@ int main(int argc, char **argv)
 
     if (task == "train")
     {
+        // (2.1) Model training
         auto fit_t0 = chrono::steady_clock::now();
         vector<double> losses;
 
@@ -165,7 +166,7 @@ int main(int argc, char **argv)
         double fit_delta_t = std::chrono::duration<double, std::milli>(fit_t1 - fit_t0).count() * 0.001;
         cout << "Running time for " << n_epochs << " iterations: " << fit_delta_t << " s.\n\n";
 
-        // (3.1) Evaluate model quality on test data
+        // (2.2) Evaluate model quality on test data
         shared_ptr<MatrixXd> ratings_test = data_mgr->getTest();
         VectorXd actual = ratings_test->rightCols(1);
         VectorXd predicted = model.predict(ratings_test->leftCols(2));
@@ -178,7 +179,7 @@ int main(int argc, char **argv)
         cout << "RMSE(mean): " << baseline_avg << endl;
         cout << "RMSE(pred): " << error << endl;
 
-        // (3.2) save loss & trained parameters to file
+        // (2.3) Save loss & trained parameters to file
         model.save(outdir);
     }
     else if (task == "recommend")
@@ -233,7 +234,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            cout << "Unsuppored recommendation option. \n";
+            cout << "Unsupported recommendation option, please choose between `--user` and `--item`" << endl;
             return 1;
         }
     }

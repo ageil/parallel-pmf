@@ -83,7 +83,7 @@ def tsne_interactive(df, scale=1000, ratio=100):
     for label, c in zip(labels, cmap):
         df_label = df[df['cluster'] == label]
         mlab.points3d(df_label['attr_1'] * ratio, df_label['attr_2'] * ratio, df_label['attr_3'] * ratio,
-                      color=c, scale_factor=50)
+                      color=c, scale_factor=30)
 
 
 def arrow(vectors):
