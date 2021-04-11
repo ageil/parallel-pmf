@@ -183,7 +183,7 @@ Item: Star Wars: Episode V - The Empire Strikes Back (1980)	Attributes: Action|A
 ...
 ```
 
-Notice that these recommendations are not just based on similarity in content, but reflects the behavioral patterns of other users' preferences in the dataset. For this reason, the recommendations in the sample dataset span multiple genres.
+Notice that these recommendations are not just based on similarity in content, but reflects the behavioral patterns of other users' preferences in the dataset. For this reason, the exact recommendations may well span different genres. For instance, it may seem surprising that a documentary about Enron appears in a recommendation based on Star Wars Episode IV, but this merely reflects that users who tended to rate Star Wars Episde IV highly also tended to rate the Enron documentary highly. In fact, one of the appealing features of this type of model is exactly its disregard for content, which opens the door for recommendations that may surprise us – after all, isn't that just what recommendations are for?
 
 #### Appendix
 
