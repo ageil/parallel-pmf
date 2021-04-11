@@ -129,8 +129,6 @@ Due to the nature of thread allocation in parallel mode – always one for loss 
 
 For this type of model, the performance benefit of parallelization is not to be taken lightly. The plot below shows a runtime comparison on the default dataset for different number of threads. While the sequential model takes over $13$ minutes to fit when using the reference Python implementation, we can reduce that to just $2.5$ minutes in C++, and further improve it to around only $2$ seconds when using parallelization over $50$ threads. 
 
-**PLOT PLOT PLOT PLOT PLOT PLOT**
-
 ![img1](../example/parallel.png)
 
 <b>$\Large\S$ 6. Using the model for recommendations</b>
