@@ -1,14 +1,15 @@
 #ifndef FINAL_PROJECT_UTILS_H
 #define FINAL_PROJECT_UTILS_H
 
-#include <filesystem>
-#include <thread>
-#include <utility>
-
 #include <Eigen/Dense>
 #include <boost/program_options.hpp>
+#include <filesystem>
+#include <thread>
+#include <unordered_map>
+#include <unordered_set>
 
-
+namespace Model
+{
 namespace Utils
 {
 using namespace std;
@@ -18,11 +19,11 @@ namespace po = boost::program_options;
 /*---   Argument-parsing utility functions    ---*/
 
 // Enums of the possible user options for recommendations
-    enum class RecOption
-    {
-        user = 0,
-        item = 1
-    };
+enum class RecOption
+{
+    user = 0,
+    item = 1
+};
 
 // Struct to store program arguments
 struct Arguments
@@ -51,7 +52,7 @@ struct Arguments
 };
 
 // Read and parse command-line arguments
-Arguments ArgParser(int argc, char** argv, po::variables_map &vm, po::options_description &desc);
+Arguments ArgParser(int argc, char **argv, po::variables_map &vm, po::options_description &desc);
 
 // Configure input directories
 void configureInput(po::variables_map &vm, Arguments &args);
@@ -82,7 +83,7 @@ vector<int> nonNegativeIdxs(const VectorXd &x);
 
 int countIntersect(const VectorXi &x, const VectorXi &y);
 
-vector<int> getUnique(const shared_ptr<MatrixXd> &mat, int col_idx);
+vector<int> getUnique(const MatrixXd &mat, int col_idx);
 
 // Reference:
 // https://stackoverflow.com/questions/25921706/creating-a-vector-of-indices-of-a-sorted-vector
@@ -113,6 +114,38 @@ struct guarded_thread : std::thread
     }
 };
 
+struct ItemMap
+{
+    ItemMap(unordered_map<int, string> in, unordered_map<string, int> ni, unordered_map<int, string> ig,
+            unordered_map<string, string> ng, unordered_map<string, unordered_set<int>> gi)
+        : id_name(std::move(in))
+        , name_id(std::move(ni))
+        , id_item_attributes(std::move(ig))
+        , name_item_attributes(std::move(ng))
+        , item_attributes_ids(std::move(gi)){};
+
+    unordered_map<int, string> id_name;
+    unordered_map<string, int> name_id;
+    unordered_map<int, string> id_item_attributes;
+    unordered_map<string, string> name_item_attributes;
+    unordered_map<string, unordered_set<int>> item_attributes_ids;
+};
+
+ItemMap loadItemMap(const string &input);
+
+/**
+ * Enums of the columns to their column indices of ratings dataset
+ */
+enum class Cols
+{
+    user = 0,
+    item = 1,
+    rating = 2
+};
+
+int col_value(Cols);
+
 } // namespace Utils
+} // namespace Model
 
 #endif

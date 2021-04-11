@@ -1,20 +1,18 @@
+#include "models/PMF.h"
+#include "models/dataloader.h"
+#include "models/datamanager.h"
+#include "models/utils.h"
+#include <boost/program_options.hpp>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <memory>
-
-#include "models/PMF.h"
-#include "models/datamanager.h"
-#include "models/utils.h"
-
-#include <boost/program_options.hpp>
 
 using namespace std;
 using namespace Model;
 using namespace Utils;
 using namespace chrono;
 namespace po = boost::program_options;
-
 
 int main(int argc, char **argv)
 {
@@ -59,7 +57,8 @@ int main(int argc, char **argv)
     // (1). read CSV & split to training & test sets
     auto dm_t0 = chrono::steady_clock::now();
 
-    const auto data_mgr = make_shared<DataManager::DataManager>(args.indir, args.ratio);
+    const auto data_loader = make_shared<DataLoader>(args.indir, args.outdir);
+    const auto data_mgr = make_shared<DataManager>(data_loader, args.ratio);
 
     auto dm_t1 = chrono::steady_clock::now();
     double dm_delta_t = std::chrono::duration<double, std::milli>(dm_t1 - dm_t0).count() * 0.001;
@@ -72,6 +71,7 @@ int main(int argc, char **argv)
     {
         // (2.1) Model training
         auto fit_t0 = chrono::steady_clock::now();
+
         vector<double> losses;
 
         if (args.run_fit_sequential)
@@ -84,6 +84,7 @@ int main(int argc, char **argv)
         }
 
         auto fit_t1 = chrono::steady_clock::now();
+
         double fit_delta_t = std::chrono::duration<double, std::milli>(fit_t1 - fit_t0).count() * 0.001;
         cout << "Running time for " << args.n_epochs << " iterations: " << fit_delta_t << " s.\n\n";
 
@@ -100,16 +101,15 @@ int main(int argc, char **argv)
         cout << "RMSE(mean): " << baseline_avg << endl;
         cout << "RMSE(pred): " << error << endl;
 
-        // (2.3) Save loss & trained parameters to file
-        model.save(args.outdir);
+        // (3.2) save loss & trained parameters to file
+        data_loader->saveTrainResults(model.getTheta(), model.getTheta(), model.getComputedLoss());
     }
     else if (args.task == "recommend")
     {
         // (3). Recommendations
         // (3.1) Load model from file
-        model.load(args.outdir);
-
-        DataManager::ItemMap item_map = data_mgr->loadItemMap(args.mapdir);
+        tie(model.getTheta(), model.getBeta()) = data_loader->getLearntVectors();
+        Utils::ItemMap item_map = Utils::loadItemMap(args.mapdir);
 
         if (args.rec_option == RecOption::user)
         {
