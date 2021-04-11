@@ -40,7 +40,7 @@ unsigned long int getLineNumber(const string &file_name)
 }
 } // namespace
 
-DataLoader::DataLoader(const string &dataset_in, const string &res_dir) //, const string &out)
+DataLoader::DataLoader(const string &dataset_in, const string &res_dir)
     : m_dataset_in(dataset_in)
     , m_res_dir(res_dir)
 {

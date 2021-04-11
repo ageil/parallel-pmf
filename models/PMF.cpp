@@ -1,11 +1,9 @@
 #include "PMF.h"
 #include "datamanager.h"
 #include "utils.h"
-
 #include <iostream>
 #include <set>
 #include <thread>
-
 #include <gsl/gsl_assert>
 
 namespace Model
@@ -24,10 +22,6 @@ PMF::PMF(const shared_ptr<DataManager> &data_mgr, const int k, const double std_
 {
     Expects(k > 0);
     cout << "[PMF] Initializing PMF with k=" << k << " std_beta=" << m_std_beta << " std_theta=" << m_std_theta << endl;
-
-    const shared_ptr<MatrixXd> training_data = m_data_mgr->getTrain();
-    cout << "[PMF] Initializing for fit. Using training data matrix with size: " << training_data->rows() << " x "
-         << training_data->cols() << endl;
 
     normal_distribution<double> dist_beta(0, m_std_beta);
     normal_distribution<double> dist_theta(0, m_std_theta);
