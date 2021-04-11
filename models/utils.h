@@ -1,16 +1,71 @@
 #ifndef FINAL_PROJECT_UTILS_H
 #define FINAL_PROJECT_UTILS_H
 
+#include <filesystem>
 #include <thread>
 #include <utility>
 
 #include <Eigen/Dense>
-#include <boost/regex.hpp>
+#include <boost/program_options.hpp>
+
 
 namespace Utils
 {
 using namespace std;
 using namespace Eigen;
+namespace po = boost::program_options;
+
+/*---   Argument-parsing utility functions    ---*/
+
+// Enums of the possible user options for recommendations
+    enum class RecOption
+    {
+        user = 0,
+        item = 1
+    };
+
+// Struct to store program arguments
+struct Arguments
+{
+    // Input/output directories
+    string indir;
+    string mapdir;
+    filesystem::path outdir;
+
+    // Model task options
+    string task;
+    RecOption rec_option;
+
+    // Model parallelization options
+    bool run_fit_sequential;
+    int n_threads;
+
+    // Model specification parameters
+    int k;
+    int n_epochs;
+    double gamma;
+    double ratio;
+    double std_theta;
+    double std_beta;
+    int loss_interval;
+};
+
+// Read and parse command-line arguments
+Arguments ArgParser(int argc, char** argv, po::variables_map &vm, po::options_description &desc);
+
+// Configure input directories
+void configureInput(po::variables_map &vm, Arguments &args);
+
+// Configure output directory
+void configureOutput(po::variables_map &vm, Arguments &args);
+
+// Configure task option
+void configureTask(po::variables_map &vm, Arguments &args);
+
+// Configure model options
+void configurePMF(po::variables_map &vm, Arguments &args);
+
+/*---   Model-fitting utility functions     ---*/
 
 // Specify argsort option: ascend or descend
 enum class Order
