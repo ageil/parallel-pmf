@@ -1,14 +1,15 @@
-#include <cmath>
+#include "utils.h"
+#include "../csvlib/csv.h"
+#include <filesystem>
 #include <iostream>
 #include <set>
 #include <vector>
-
-#include "utils.h"
-
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <gsl/gsl_assert>
 
+namespace Model
+{
 namespace Utils
 {
 
@@ -97,15 +98,15 @@ VectorXi argsort(const VectorXd &x, const Order option)
 
 /**
  * Return the unique items in a given column of the input matrix
- * @param mat Pointer of the input matrix
+ * @param mat Input matrix whose given column's unique values will be extracted
  * @param col_idx Column index of the matrix to calculate unique items
  * @return vector of unique items from the given column of the input matrix
  */
-vector<int> getUnique(const shared_ptr<MatrixXd> &mat, int col_idx)
+vector<int> getUnique(const MatrixXd &mat, int col_idx)
 {
-    Expects(col_idx >= 0 and col_idx <= mat->cols());
+    Expects(col_idx >= 0 and col_idx <= mat.cols());
 
-    const MatrixXd &col = mat->col(col_idx);
+    const MatrixXd &col = mat.col(col_idx);
     set<int> unique_set{col.data(), col.data() + col.size()};
     vector<int> unique(unique_set.begin(), unique_set.end());
 
@@ -181,4 +182,65 @@ double cosine(const VectorXd &v1, const VectorXd &v2)
     return distance;
 }
 
+/**
+ * Load the mappings between items' ID (integer), item_names (string), and item_attributes (string)
+ * @param input Input file name
+ * @return Struct of multiple Maps between ID, item_names & item_attributes:
+ * ItemMap.id_name - ID->item_name, ItemMap.name_id - item_name->ID, ItemMap.id_item_attributes -
+ * ID->item_attributes, ItemMap.name_item_attributes - item_name->item_attributes, Item.item_attributes_ids -
+ * item_attributes->Set of IDs of the given item_attributes
+ */
+ItemMap loadItemMap(const string &input)
+{
+    if (!filesystem::exists(input))
+    {
+        cerr << "Can't find the given input file: " << input << endl;
+        exit(1);
+    }
+
+    io::CSVReader<3> in(input);
+
+    in.read_header(io::ignore_extra_column, "itemId", "itemName", "itemAttributes");
+    int id;
+    string item_name;
+    string item_attributes;
+
+    unordered_map<int, string> id_name;
+    unordered_map<string, int> name_id;
+    unordered_map<int, string> id_item_attributes;
+    unordered_map<string, string> name_item_attributes;
+    unordered_map<string, unordered_set<int>> item_attributes_ids;
+
+    while (in.read_row(id, item_name, item_attributes))
+    {
+        id_name[id] = item_name;
+        name_id[item_name] = id;
+        id_item_attributes[id] = item_attributes;
+        name_item_attributes[item_name] = item_attributes;
+        string first_item_attributes = Utils::tokenize(item_attributes, "|")[0];
+        if (item_attributes_ids.find(first_item_attributes) == item_attributes_ids.end())
+        {
+            unordered_set<int> id_set(id);
+            item_attributes_ids[item_attributes] = id_set;
+        }
+        else
+        {
+            item_attributes_ids[item_attributes].insert(id);
+        }
+    }
+
+    return ItemMap{id_name, name_id, id_item_attributes, name_item_attributes, item_attributes_ids};
+}
+
+/**
+ * Cast the Cols enum class type to its corresponding enum type
+ * @param Cols enum of the Cols type
+ * @return Int representing the column idx
+ */
+int col_value(Cols column)
+{
+    return static_cast<int>(column);
+}
+
 } // namespace Utils
+} // namespace Model

@@ -1,12 +1,7 @@
 #include "PMF.h"
-#include "../csvlib/csv.h"
 #include "datamanager.h"
 #include "utils.h"
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <fstream>
 #include <iostream>
 #include <set>
 #include <thread>
@@ -18,27 +13,32 @@ namespace Model
 
 using namespace Utils;
 
-PMF::PMF(const shared_ptr<DataManager::DataManager> &data_mgr, const int k, const double std_beta,
-         const double std_theta, const int loss_interval)
+PMF::PMF(const shared_ptr<DataManager> &data_mgr, const int k, const double std_beta, const double std_theta,
+         const int loss_interval)
     : m_data_mgr(data_mgr)
-    , m_training_data(data_mgr->getTrain())
     , m_std_beta(std_beta)
     , m_std_theta(std_theta)
+    , m_k(k)
     , m_fit_in_progress(false)
     , m_loss_interval(loss_interval)
 {
-    cout << "[PMF] Initializing PMF with `data` size " << m_training_data->rows() << " x " << m_training_data->cols()
-         << " with k=" << k << " std_beta=" << std_beta << " std_theta=" << std_theta << endl;
+    Expects(k > 0);
+    cout << "[PMF] Initializing PMF with k=" << k << " std_beta=" << m_std_beta << " std_theta=" << m_std_theta << endl;
 
-    normal_distribution<double> dist_beta(0, std_beta);
-    normal_distribution<double> dist_theta(0, std_theta);
+    const shared_ptr<MatrixXd> training_data = m_data_mgr->getTrain();
+    cout << "[PMF] Initializing for fit. Using training data matrix with size: " << training_data->rows() << " x "
+         << training_data->cols() << endl;
 
-    initVectors(dist_theta, m_data_mgr->users, m_theta, k);
-    cout << "[PMF] Initialized " << m_theta.size() << " users in theta map \n";
+    normal_distribution<double> dist_beta(0, m_std_beta);
+    normal_distribution<double> dist_theta(0, m_std_theta);
 
-    initVectors(dist_beta, m_data_mgr->items, m_beta, k);
-    cout << "[PMF] Initialized " << m_beta.size() << " items in beta map \n";
-    cout << "[PMF] Initialization complete. \n\n";
+    initVectors(dist_theta, *(m_data_mgr->getUsers()), m_theta);
+    cout << "[PMF] Initialized " << m_theta.size() << " users in theta map. \n";
+
+    initVectors(dist_beta, *(m_data_mgr->getItems()), m_beta);
+    cout << "[PMF] Initialized " << m_beta.size() << " items in beta map. \n";
+
+    cout << "[PMF] Model ready for fitting. \n\n";
 }
 
 PMF::~PMF()
@@ -51,16 +51,13 @@ PMF::~PMF()
  * @param dist The distribution from which entry values for the latent vector are randomly drawn
  * @param entities A vector of entity IDs, either user IDs or item IDs
  * @param vmap A map connecting each entity ID to its corresponding latent vector
- * @param k The length of each latent vector
  */
-void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities, LatentVectors &vmap, const int k)
+void PMF::initVectors(normal_distribution<> &dist, const vector<int> &entities, LatentVectors &vmap)
 {
-    Expects(k > 0);
-
     auto rand = [&]() { return dist(d_generator); };
-    for (int elem : entities)
+    for (const auto elem : entities)
     {
-        VectorXd vec = VectorXd::NullaryExpr(k, rand);
+        VectorXd vec = VectorXd::NullaryExpr(m_k, rand);
         vec.normalize();
         vmap[elem] = vec;
     }
@@ -110,12 +107,10 @@ double PMF::logNormPDF(double x, double loc, double scale) const
  * @param column Index of either the user or item column in which ID is located
  * @return A matrix of rows where values in column are all ID
  */
-MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
+MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, const int ID, int column) const
 {
-    using namespace DataManager;
-
-    Expects(ID > 0);
-    Expects(column == col_value(Cols::user) or column == col_value(Cols::item));
+    Expects(ID >= 0);
+    Expects(column == col_value(Cols::user) || column == col_value(Cols::item));
 
     VectorXi is_id = (batch.col(column).array() == ID).cast<int>(); // which rows have ID in col?
     int num_rows = is_id.sum();
@@ -140,16 +135,18 @@ MatrixXd PMF::subsetByID(const Ref<MatrixXd> &batch, int ID, int column) const
  */
 void PMF::computeLoss(const LatentVectors &theta, const LatentVectors &beta)
 {
-    using namespace DataManager;
 
     double loss = 0;
+    const vector<int> &user_ids = *(m_data_mgr->getUsers());
 
-    for (const auto user_id : m_data_mgr->users)
+    for (const auto user_id : user_ids)
     {
         loss += logNormPDF(theta.at(user_id));
     }
 
-    for (const auto item_id : m_data_mgr->items)
+    const vector<int> &item_ids = *(m_data_mgr->getItems());
+
+    for (const auto item_id : item_ids)
     {
         loss += logNormPDF(beta.at(item_id));
     }
@@ -158,7 +155,7 @@ void PMF::computeLoss(const LatentVectors &theta, const LatentVectors &beta)
     const int item_col = col_value(Cols::item);
     const int rating_col = col_value(Cols::rating);
 
-    const auto &dataMatrix = *m_training_data;
+    const auto &dataMatrix = *(m_data_mgr->getTrain());
     for (int idx = 0; idx < dataMatrix.rows(); idx++)
     {
         int i = dataMatrix(idx, user_col);
@@ -222,7 +219,6 @@ void PMF::computeLossFromQueue()
  */
 void PMF::fitUsers(const Ref<MatrixXd> &batch, const double gamma)
 {
-    using namespace DataManager;
 
     Expects(gamma > 0.0);
 
@@ -260,7 +256,6 @@ void PMF::fitUsers(const Ref<MatrixXd> &batch, const double gamma)
  */
 void PMF::fitItems(const Ref<MatrixXd> &batch, const double gamma)
 {
-    using namespace DataManager;
 
     Expects(gamma > 0.0);
 
@@ -305,6 +300,8 @@ vector<double> PMF::fitSequential(const int epochs, const double gamma)
     cout << "[fitSequential] Running fit (sequential) on main thread. Computing loss every " << m_loss_interval
          << " epochs.\n\n";
 
+    const shared_ptr<MatrixXd> data_matrix_ptr = m_data_mgr->getTrain();
+
     for (int epoch = 1; epoch <= epochs; epoch++)
     {
         if (epoch % m_loss_interval == 0)
@@ -313,8 +310,8 @@ vector<double> PMF::fitSequential(const int epochs, const double gamma)
             cout << "[fitSequential] Epoch: " << epoch << endl;
         }
 
-        fitUsers(*m_training_data, gamma);
-        fitItems(*m_training_data, gamma);
+        fitUsers(*data_matrix_ptr, gamma);
+        fitItems(*data_matrix_ptr, gamma);
 
     } // epochs
 
@@ -331,13 +328,12 @@ vector<double> PMF::fitSequential(const int epochs, const double gamma)
  */
 vector<double> PMF::fitParallel(const int epochs, const double gamma, const int n_threads)
 {
-    using namespace DataManager;
-
     Expects(epochs > 0);
     Expects(gamma > 0.0);
     Expects(n_threads > 0);
 
-    const int max_rows = m_training_data->rows();
+    const auto train_data_ptr = m_data_mgr->getTrain();
+    const int max_rows = train_data_ptr->rows();
     int batch_size = max_rows / (n_threads - 1); // (n-1) threads for params. update, 1 thread for loss calculation
     const int num_batches = max_rows / batch_size;
 
@@ -367,7 +363,7 @@ vector<double> PMF::fitParallel(const int epochs, const double gamma, const int 
             cout << "[fitParallel] Epoch: " << epoch << endl;
         }
 
-        vector<Utils::guarded_thread> threadpool;
+        vector<Utils::guarded_thread> threads;
 
         int cur_batch = 0;
         while (cur_batch <= num_batches)
@@ -379,10 +375,10 @@ vector<double> PMF::fitParallel(const int epochs, const double gamma, const int 
             const int num_cols = col_value(Cols::rating) + 1;
 
             // reference batch of data
-            Ref<MatrixXd> batch = m_training_data->block(row_start, col_start, num_rows, num_cols);
+            Ref<MatrixXd> batch = train_data_ptr->block(row_start, col_start, num_rows, num_cols);
 
             // add batch fit tasks to thread pool
-            threadpool.emplace_back([this, batch, gamma] {
+            threads.emplace_back([this, batch, gamma] {
                 this->fitUsers(batch, gamma);
                 this->fitItems(batch, gamma);
             });
@@ -398,101 +394,19 @@ vector<double> PMF::fitParallel(const int epochs, const double gamma, const int 
     return m_losses;
 }
 
-/**
- * Load previously learnt latent theta & beta vectors from file
- * @param indir Parent directory to files containing theta & beta vectors
- */
-void PMF::load(filesystem::path &indir)
+LatentVectors &PMF::getTheta()
 {
-    cout << "Loading previously learnt parameters into model..." << endl;
-
-    filesystem::path theta_fname = indir / "theta.csv";
-    filesystem::path beta_fname = indir / "beta.csv";
-    if (!filesystem::exists(theta_fname) || !filesystem::exists(beta_fname))
-    {
-        cerr << "Model doesn't have learnt parameters, need to fit data first" << endl;
-        exit(1);
-    }
-
-    loadModel(theta_fname, LatentVar::theta);
-    loadModel(beta_fname, LatentVar::beta);
+    return m_theta;
 }
 
-/**
- * Helper function to load theta & beta vectors from file
- * @param indir Parent directory to files containing theta & beta vectors
- * @param option Specify which latent variable to load (LatentVar::theta or LatentVar::beta)
- */
-void PMF::loadModel(filesystem::path &indir, LatentVar option)
+LatentVectors &PMF::getBeta()
 {
-    io::CSVReader<2> in(indir);
-    in.read_header(io::ignore_extra_column, "id", "vector");
-    int id;
-    string str;
-
-    while (in.read_row(id, str))
-    {
-        vector<string> tokenized = Utils::tokenize(str);
-        vector<double> vi_params(tokenized.size());
-        std::transform(tokenized.begin(), tokenized.end(), vi_params.begin(),
-                       [&](const string &s) { return std::stod(s); });
-        Eigen::Map<VectorXd> params(vi_params.data(), vi_params.size());
-
-        if (option == LatentVar::theta)
-        {
-            m_theta[id] = params;
-        }
-        else
-        {
-            m_beta[id] = params;
-        }
-    }
+    return m_beta;
 }
 
-/**
- * Save learnt latent theta & beta vectors to file
- * @param outdir Parent directory to files to save theta & beta vectors
- */
-void PMF::save(filesystem::path &outdir)
+vector<double> &PMF::getComputedLoss()
 {
-    if (!filesystem::exists(outdir))
-    {
-        filesystem::create_directory(outdir);
-    }
-
-    cout << "Saving loss values..." << endl;
-    filesystem::path loss_fname = outdir / "loss.csv";
-    ofstream loss_file;
-    loss_file.open(loss_fname);
-    loss_file << "Loss";
-    for (auto &loss : m_losses)
-    {
-        loss_file << endl << loss;
-    }
-    loss_file.close();
-
-    cout << "Saving model parameters..." << endl;
-    filesystem::path theta_fname = outdir / "theta.csv";
-    ofstream theta_file;
-    theta_file.open(theta_fname);
-    theta_file << "id,vector";
-
-    for (auto const &[id, theta_i] : m_theta)
-    {
-        theta_file << endl << id << ',' << theta_i.transpose();
-    }
-    theta_file.close();
-
-    filesystem::path beta_fname = outdir / "beta.csv";
-    ofstream beta_file;
-    beta_file.open(beta_fname);
-    beta_file << "id,vector";
-
-    for (auto const &[id, beta_i] : m_beta)
-    {
-        beta_file << endl << id << ',' << beta_i.transpose();
-    }
-    beta_file.close();
+    return m_losses;
 }
 
 /**
@@ -502,7 +416,6 @@ void PMF::save(filesystem::path &outdir)
  */
 VectorXd PMF::predict(const MatrixXd &data) const
 {
-    using namespace DataManager;
 
     Expects(data.cols() == 2);
 
@@ -531,13 +444,11 @@ VectorXd PMF::predict(const MatrixXd &data) const
  */
 VectorXi PMF::recommend(const int user_id, const int N) const
 {
-    using namespace DataManager;
-
     Expects(N >= 1);
     Expects(m_theta.count(user_id) > 0);
 
     vector<double> vi_items{};
-    for (auto &it : m_beta)
+    for (auto it : m_beta)
     {
         vi_items.push_back(it.first);
     }
@@ -628,56 +539,6 @@ vector<string> PMF::getSimilarItems(int &item_id, unordered_map<int, string> &id
     }
 
     return similar_items;
-}
-
-/**
- * Calculate the accuracy metrics of the top N predicted items for each user with their actual likes
- * @param data A 3-column matrix with Col.1 - user IDs, Col.2 - item IDs & Col.3 - user's rating to item
- * @param N Number of the top predicted recommendations (items) compare with
- * @return Struct of {precision, recall} representing how frequency recommendations hit the actual users' likes
- */
-Metrics PMF::accuracy(const shared_ptr<MatrixXd> &data, const int N) const
-{
-    using namespace DataManager;
-
-    Expects(N > 0);
-
-    double num_likes_total = 0;
-    double num_hits_total = 0;
-
-    MatrixXd users = (*data).col(col_value(Cols::user));
-    set<int> unique_users = {users.data(), users.data() + users.size()};
-
-    for (auto &user_id : unique_users)
-    {
-        const MatrixXd user_data = subsetByID(*data, user_id, col_value(Cols::user));
-        const VectorXi &items = user_data.col(col_value(Cols::item)).cast<int>();
-        const VectorXd &ratings = user_data.col(col_value(Cols::rating));
-
-        // Get all items with non-negative ratings ("likes") from the current
-        // user id
-        vector<int> pos_idxs = Utils::nonNegativeIdxs(ratings);
-        VectorXi user_liked(pos_idxs.size());
-        for (int i = 0; i < pos_idxs.size(); i++)
-        {
-            user_liked[i] = static_cast<int>(items[pos_idxs[i]]); // item type: int
-        }
-
-        // Get top N recommendations for the current user_id
-        VectorXi top_rec = recommend(user_id, N);
-
-        // Get overlap between recommendation & ground-truth "likes"
-        int num_likes = pos_idxs.size();
-        int num_hits = Utils::countIntersect(top_rec, user_liked);
-        num_likes_total += num_likes;
-        num_hits_total += num_hits;
-    }
-
-    Metrics acc;
-    acc.precision = num_hits_total / static_cast<double>(N * unique_users.size());
-    acc.recall = num_hits_total / num_likes_total;
-
-    return acc;
 }
 
 } // namespace Model
