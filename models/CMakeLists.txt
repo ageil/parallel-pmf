@@ -1,4 +1,4 @@
-add_library(models PMF.cpp datamanager.cpp utils.cpp)
+add_library(models dataloader.cpp datamanager.cpp PMF.cpp utils.cpp)
 
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -15,4 +15,4 @@ target_link_libraries(models PUBLIC
     ${Boost_LIBRARIES}
     Eigen3::Eigen
     Microsoft.GSL::GSL
-    )
+)

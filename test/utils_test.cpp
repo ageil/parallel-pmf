@@ -8,6 +8,7 @@
 
 using namespace std;
 using namespace Eigen;
+using namespace Model;
 
 void test_tokenize()
 {
@@ -55,10 +56,10 @@ void test_getUnique()
     cout << "Testing getUnique..." << endl;
     MatrixXd x(4, 2);
     x << 1, 2, 1, 3, 2, 2, 2, 4;
-    shared_ptr<MatrixXd> x_ptr = make_shared<MatrixXd>(x);
+    MatrixXd data = MatrixXd(x);
 
     vector<int> unique_cols_gt = {1, 2}; // ground truth unique values in column 1
-    vector<int> unique_cols = Utils::getUnique(x_ptr, 0);
+    vector<int> unique_cols = Utils::getUnique(data, 0);
     Expects(std::equal(unique_cols_gt.begin(), unique_cols_gt.end(), unique_cols.begin()) &&
             unique_cols_gt.size() == unique_cols.size());
 }

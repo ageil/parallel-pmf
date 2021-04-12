@@ -1,17 +1,16 @@
-#include <filesystem>
 #include <iostream>
 #include <random>
 #include <set>
 
+#include "dataloader.h"
 #include "datamanager.h"
+#include "modeltypes.h"
 #include "utils.h"
 
 #include <gsl/gsl_assert>
 
-namespace DataManager
+namespace Model
 {
-
-using namespace std;
 
 namespace
 {
@@ -22,8 +21,11 @@ namespace
  */
 void zeroCenter(MatrixXd &data)
 {
+    using namespace Utils;
+
     const int rating_col = col_value(Cols::rating);
-    set<double> unique_vals{data.col(rating_col).data(), data.col(rating_col).data() + data.col(rating_col).size()};
+    const set<double> unique_vals{data.col(rating_col).data(),
+                                  data.col(rating_col).data() + data.col(rating_col).size()};
 
     double sum = 0;
 
@@ -51,184 +53,90 @@ void shuffle(MatrixXd &data)
     data = ind.asPermutation() * data;
 }
 
+} // namespace
+
+using namespace std;
+
 /**
- * Count the total number of lines for the input file.
- * @param file_name Input file name
- * @return Number of lines of the file
+ * Initialize DataManager with shared ownership of DataLoader
+ * @param data_loader shared_ptr to an instance of data_loader
+ * @param ratio to split the dataset into train and test
  */
-unsigned long int getLineNumber(const string &file_name)
+DataManager::DataManager(const shared_ptr<DataLoader> &data_loader, const double ratio)
+    : m_data_loader(data_loader)
 {
-    io::CSVReader<3> in(file_name);
-
-    const auto [userIdCol, itemIdCol, ratingCol] = Header;
-    in.read_header(io::ignore_extra_column, userIdCol, itemIdCol, ratingCol);
-    double col1, col2, col3;
-    unsigned long int count = 0;
-
-    while (in.read_row(col1, col2, col3))
-    {
-        count++;
-    }
-
-    return count;
+    loadDataset(ratio);
 }
 
 /**
- * Load the matrix from file and perform preprocessing steps (shuffling rows, zero-centering ratings).
- * @param input_filepath Input file name
- * @return Matrix of the input dataset (dimension: N x 3)
+ * Load the user ids, item ids, train data, test data, splitting the dataset by the given ratio. (e.g.
+ * ratio=0.7 will split to 70% train, 30% test)
+ * @param ratio The ratio to split the data into training data vs. testing data.
  */
-MatrixXd load(const string &input_filepath)
+void DataManager::loadDataset(const double ratio)
 {
-    if (!filesystem::exists(input_filepath))
-    {
-        cerr << "Can't find the given input_filepath file: " << input_filepath << endl;
-        exit(1);
-    }
+    using namespace Utils;
+    Expects(ratio > 0.0 && ratio <= 1.0);
 
-    // Get total line number, initialize matrix
-    const unsigned long int line_count = getLineNumber(input_filepath);
-    MatrixXd data(line_count, 3);
-
-    // Read file content
-    cout << "Loading input matrix..." << endl;
-
-    io::CSVReader<3> in(input_filepath);
-    const auto [userIdCol, itemIdCol, ratingCol] = Header;
-    in.read_header(io::ignore_extra_column, userIdCol, itemIdCol, ratingCol);
-
-    int user_id;
-    int item_id;
-    double rating;
-    int row_idx = 0;
-
-    while (in.read_row(user_id, item_id, rating))
-    {
-        Vector3d curr;
-        curr << user_id, item_id, rating;
-        data.row(row_idx) = curr;
-        row_idx++;
-    }
-
+    MatrixXd data = m_data_loader->getDataset();
     zeroCenter(data);
     shuffle(data);
 
-    return data;
-}
+    // get all unique user & item ids from the full dataset
+    m_users = make_shared<vector<int>>(getUnique(data, col_value(Cols::user)));
+    m_items = make_shared<vector<int>>(getUnique(data, col_value(Cols::item)));
 
-} // namespace
-
-/**
- * Initialize DataManager by loading the csv file found in the given input. The data is zero-centered, shuffled, and
- * stored. Additionally, the given ratio will determine how to split the processed data into training data vs. testing
- * data. (e.g. ratio=0.7 will split to 70% train, 30% test)
- * @param input A file path to the csv file of data to load.
- * @param ratio The ratio to split the data into training data vs. testing data.
- */
-DataManager::DataManager(const string &input, const double ratio)
-    : m_data(make_shared<MatrixXd>(load(input)))
-
-{
-    Expects(ratio > 0.0 && ratio <= 1.0);
-    tie(m_data_train, m_data_test) = split(ratio);
-
-    // get all user & item ids
-    users = Utils::getUnique(m_data, 0);
-    items = Utils::getUnique(m_data, 1);
+    tie(m_data_train, m_data_test) = split(data, ratio);
 }
 
 /**
- * Splits the m_data rows into a train and test set by ratio (e.g. ratio=0.7 will split to 70% train, 30% test)
+ * Splits the data rows into a train and test set by ratio (e.g. ratio=0.7 will split to 70% train, 30% test)
  * @param ratio The ratio to split the data into training data vs. testing data.
- * @return A tuple of <MatrixXd, MatrixXd> type, in which the first matrix is the training data and the second matrix is
- * the testing data.
+ * @return A tuple of <MatrixXd, MatrixXd> type, in which the first matrix is the training data and the second
+ * matrix is the testing data.
  */
-tuple<TrainingData, TestingData> DataManager::split(const double ratio)
+tuple<TrainingData, TestingData> DataManager::split(const MatrixXd &data, const double ratio)
 {
     Expects(ratio > 0.0 && ratio <= 1.0);
-    const int idx = static_cast<int>(m_data->rows() * ratio);
+    const int idx = static_cast<int>(data.rows() * ratio);
 
-    return {make_shared<MatrixXd>(m_data->topRows(idx)),
-            make_shared<MatrixXd>(m_data->bottomRows(m_data->rows() - idx))};
+    return {make_shared<MatrixXd>(data.topRows(idx)), make_shared<MatrixXd>(data.bottomRows(data.rows() - idx))};
 }
 
 /**
  * Gets the training data set.
- * @return A shared_ptr of the matrix of the training data set.
+ * @return TestingData: a shared_ptr of the matrix of the training data set.
  */
-shared_ptr<MatrixXd> DataManager::getTrain() const
+TestingData DataManager::getTrain() const
 {
     return m_data_train;
 }
 
 /**
  * Gets the testing data set.
- * @return A shared_ptr of the matrix of the testing data set.
+ * @return TestingData: a shared_ptr of the matrix of the testing data set.
  */
-shared_ptr<MatrixXd> DataManager::getTest() const
+TestingData DataManager::getTest() const
 {
     return m_data_test;
 }
 
 /**
- * Load the mappings between items' ID (integer), item_names (string), and item_attributes (string)
- * @param input Input file name
- * @return Struct of multiple Maps between ID, item_names & item_attributes:
- * ItemMap.id_name - ID->item_name, ItemMap.name_id - item_name->ID, ItemMap.id_item_attributes - ID->item_attributes,
- * ItemMap.name_item_attributes - item_name->item_attributes, Item.item_attributes_ids - item_attributes->Set of IDs of
- * the given item_attributes
+ * Gets all the unique user ids.
+ * @return a shared_ptr to the vector of the user ids.
  */
-ItemMap DataManager::loadItemMap(const string &input)
+shared_ptr<vector<int>> DataManager::getUsers() const
 {
-    if (!filesystem::exists(input))
-    {
-        cerr << "Can't find the given input file: " << input << endl;
-        exit(1);
-    }
-
-    io::CSVReader<3> in(input);
-
-    in.read_header(io::ignore_extra_column, "itemId", "itemName", "itemAttributes");
-    int id;
-    string item_name;
-    string item_attributes;
-    unordered_map<int, string> id_name;
-    unordered_map<string, int> name_id;
-    unordered_map<int, string> id_item_attributes;
-    unordered_map<string, string> name_item_attributes;
-    unordered_map<string, unordered_set<int>> item_attributes_ids;
-
-    while (in.read_row(id, item_name, item_attributes))
-    {
-        id_name[id] = item_name;
-        name_id[item_name] = id;
-        id_item_attributes[id] = item_attributes;
-        name_item_attributes[item_name] = item_attributes;
-        string first_item_attributes = Utils::tokenize(item_attributes, "|")[0];
-        if (item_attributes_ids.find(first_item_attributes) == item_attributes_ids.end())
-        {
-            unordered_set<int> id_set(id);
-            item_attributes_ids[item_attributes] = id_set;
-        }
-        else
-        {
-            item_attributes_ids[item_attributes].insert(id);
-        }
-    }
-
-    ItemMap item_map = ItemMap(id_name, name_id, id_item_attributes, name_item_attributes, item_attributes_ids);
-
-    return item_map;
+    return m_users;
 }
 
 /**
- * Cast the Cols enum class type to its corresponding enum type
- * @param Cols enum of the Cols type
- * @return Int representing the column idx
+ * Gets all the unique item ids.
+ * @return a shared_ptr to the vector of the item ids.
  */
-int col_value(Cols column)
+shared_ptr<vector<int>> DataManager::getItems() const
 {
-    return static_cast<int>(column);
+    return m_items;
 }
 
-} // namespace DataManager
+} // namespace Model
