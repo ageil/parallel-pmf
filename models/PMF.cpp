@@ -491,7 +491,10 @@ vector<string> PMF::recommend(const int user_id, const unordered_map<int, string
 
     for (int i = 0; i < rec.size(); i++)
     {
-        rec_names.push_back(item_name.at(rec[i]));
+        if (item_name.find(rec[i]) != item_name.end())
+        {
+            rec_names.push_back(item_name.at(rec[i]));
+        }
     }
 
     return rec_names;
