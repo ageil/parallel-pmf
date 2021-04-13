@@ -102,7 +102,7 @@ int main(int argc, char **argv)
         cout << "RMSE(pred): " << error << endl;
 
         // (3.2) save loss & trained parameters to file
-        data_loader->saveTrainResults(model.getTheta(), model.getTheta(), model.getComputedLoss());
+        data_loader->saveTrainResults(model.getTheta(), model.getBeta(), model.getComputedLoss());
     }
     else if (args.task == "recommend")
     {
